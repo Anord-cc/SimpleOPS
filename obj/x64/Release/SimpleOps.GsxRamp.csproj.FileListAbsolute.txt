@@ -1,0 +1,2 @@
+C:\Users\Alex\SimpleOPS\obj\x64\Release\SimpleOps.GsxRamp.csproj.AssemblyReference.cache
+C:\Users\Alex\SimpleOPS\obj\x64\Release\SimpleOps.GsxRamp.csproj.CoreCompileInputs.cache
