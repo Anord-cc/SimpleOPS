@@ -1,4 +1,5 @@
 using System;
+using System.Windows.Forms;
 
 namespace SimpleOps.GsxRamp
 {
@@ -16,13 +17,23 @@ namespace SimpleOps.GsxRamp
             {
                 if (string.Equals(ex.Message, "help", StringComparison.OrdinalIgnoreCase))
                 {
-                    Options.PrintUsage();
+                    MessageBox.Show(
+                        "Arguments:" + Environment.NewLine +
+                        "--telemetry-url <url>" + Environment.NewLine +
+                        "--min-confidence <0-1>" + Environment.NewLine +
+                        "--no-speech" + Environment.NewLine +
+                        "--no-voice" + Environment.NewLine +
+                        "--dry-run" + Environment.NewLine +
+                        "--run-duration-seconds <n>" + Environment.NewLine +
+                        "--test-phrase <text>" + Environment.NewLine +
+                        "--run-parser-tests",
+                        "SimpleOps GSX Ramp",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
                     return 0;
                 }
 
-                Console.Error.WriteLine(ex.Message);
-                Console.WriteLine();
-                Options.PrintUsage();
+                MessageBox.Show(ex.Message, "SimpleOps GSX Ramp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return 1;
             }
 
@@ -30,20 +41,23 @@ namespace SimpleOps.GsxRamp
             {
                 if (options.RunParserTests)
                 {
-                    return ParserTestHarness.Run();
+                    int result = ParserTestHarness.Run();
+                    MessageBox.Show(
+                        result == 0 ? "Parser tests passed." : "Parser tests failed. Run from a terminal if you need exit-code visibility.",
+                        "SimpleOps GSX Ramp",
+                        MessageBoxButtons.OK,
+                        result == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+                    return result;
                 }
 
-                using (var controller = new RampController(options))
-                {
-                    controller.Start();
-                    controller.RunLoop();
-                }
-
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.Run(new RampControlForm(options));
                 return 0;
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine(ex);
+                MessageBox.Show(ex.ToString(), "SimpleOps GSX Ramp", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return 1;
             }
         }

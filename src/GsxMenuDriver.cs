@@ -1,20 +1,53 @@
+using Microsoft.FlightSimulator.SimConnect;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
 
 namespace SimpleOps.GsxRamp
 {
-    internal sealed class GsxMenuDriver : IGsxMenuController
+    internal sealed class GsxMenuDriver : IGsxMenuController, IDisposable
     {
         private readonly GsxPaths _paths;
-        private readonly GsxHotkeySender _hotkeySender;
+        private readonly IntPtr _windowHandle;
+        private readonly int _messageId;
+        private readonly Action<string> _log;
+        private readonly object _sync = new object();
 
-        public GsxMenuDriver(GsxPaths paths, GsxHotkeySender hotkeySender)
+        private SimConnect _simconnect;
+        private bool _definitionsRegistered;
+        private bool _simConnected;
+        private bool _couatlStarted;
+
+        public GsxMenuDriver(GsxPaths paths, IntPtr windowHandle, int messageId, Action<string> log)
         {
             _paths = paths;
-            _hotkeySender = hotkeySender;
+            _windowHandle = windowHandle;
+            _messageId = messageId;
+            _log = log ?? delegate { };
+            TryConnect();
+        }
+
+        public bool ProcessWindowMessage(ref Message m)
+        {
+            if (m.Msg != _messageId)
+            {
+                return false;
+            }
+
+            try
+            {
+                _simconnect?.ReceiveMessage();
+            }
+            catch (Exception ex)
+            {
+                _log("GSX Remote receive error: " + ex.Message);
+                CloseConnection();
+            }
+
+            return true;
         }
 
         public string GetTooltip()
@@ -56,41 +89,209 @@ namespace SimpleOps.GsxRamp
 
         public MenuSelectionResult OpenAndSelect(string reason, params string[] patterns)
         {
-            var openedAtUtc = DateTime.UtcNow;
-            _hotkeySender.OpenMenu();
-            var menuLines = WaitForMenuUpdate(openedAtUtc, 8000);
-            if (menuLines == null)
+            lock (_sync)
             {
-                return MenuSelectionResult.NotDetected("GSX menu was not detected for " + reason + ".");
-            }
+                TryConnect();
+                if (!_simConnected)
+                {
+                    return MenuSelectionResult.NotDetected("GSX Remote Control is not connected to SimConnect yet.");
+                }
 
-            return SelectAndSend(menuLines, patterns);
+                if (!_couatlStarted)
+                {
+                    return MenuSelectionResult.NotDetected("GSX/Couatl is not ready yet.");
+                }
+
+                EnableRemoteControl();
+                var openedAtUtc = DateTime.UtcNow;
+                SetNumber(GsxDefinition.MenuOpen, 1d);
+                var menuLines = WaitForMenuUpdate(openedAtUtc, 8000);
+                if (menuLines == null)
+                {
+                    return MenuSelectionResult.NotDetected("GSX menu was not detected for " + reason + ".");
+                }
+
+                return SelectAndSend(menuLines, patterns);
+            }
         }
 
         public MenuSelectionResult TrySelectExisting(params string[] patterns)
         {
-            return SelectAndSend(GetMenuLines(), patterns);
+            lock (_sync)
+            {
+                if (!_simConnected || !_couatlStarted)
+                {
+                    return MenuSelectionResult.NotDetected("GSX Remote Control is not ready.");
+                }
+
+                return SelectAndSend(GetMenuLines(), patterns);
+            }
         }
 
-        public IList<string> WaitForMenuUpdate(DateTime afterUtc, int timeoutMs)
+        public void Dispose()
+        {
+            CloseConnection();
+        }
+
+        private void TryConnect()
+        {
+            if (_simconnect != null || _windowHandle == IntPtr.Zero)
+            {
+                return;
+            }
+
+            try
+            {
+                _simconnect = new SimConnect("SimpleOps GSX Ramp", _windowHandle, (uint)_messageId, null, 0);
+                _simconnect.OnRecvOpen += OnRecvOpen;
+                _simconnect.OnRecvQuit += OnRecvQuit;
+                _simconnect.OnRecvException += OnRecvException;
+                _simconnect.OnRecvSimobjectData += OnRecvSimobjectData;
+                _log("GSX Remote SimConnect object created.");
+            }
+            catch (COMException ex)
+            {
+                _simconnect = null;
+                _simConnected = false;
+                _log("GSX Remote waiting for SimConnect: " + ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _simconnect = null;
+                _simConnected = false;
+                _log("GSX Remote startup error: " + ex.Message);
+            }
+        }
+
+        private void OnRecvOpen(SimConnect sender, SIMCONNECT_RECV_OPEN data)
+        {
+            _simConnected = true;
+            _log("GSX Remote connected to MSFS.");
+            EnsureDefinitionsRegistered();
+            EnableRemoteControl();
+            RequestState();
+        }
+
+        private void OnRecvQuit(SimConnect sender, SIMCONNECT_RECV data)
+        {
+            _log("GSX Remote SimConnect quit received.");
+            CloseConnection();
+        }
+
+        private void OnRecvException(SimConnect sender, SIMCONNECT_RECV_EXCEPTION data)
+        {
+            string message = "GSX Remote SimConnect exception: " + data.dwException;
+            if (data.dwIndex > 0)
+            {
+                message += " index=" + data.dwIndex;
+            }
+
+            if (data.dwSendID > 0)
+            {
+                message += " sendId=" + data.dwSendID;
+            }
+
+            _log(message);
+        }
+
+        private void OnRecvSimobjectData(SimConnect sender, SIMCONNECT_RECV_SIMOBJECT_DATA data)
+        {
+            var value = (SingleValueData)data.dwData[0];
+            if ((GsxRequest)data.dwRequestID == GsxRequest.CouatlStarted)
+            {
+                _couatlStarted = value.value != 0d;
+            }
+            else if ((GsxRequest)data.dwRequestID == GsxRequest.RemoteControl)
+            {
+                if (_simConnected && value.value == 0d)
+                {
+                    EnableRemoteControl();
+                }
+            }
+        }
+
+        private void EnsureDefinitionsRegistered()
+        {
+            if (_definitionsRegistered || _simconnect == null)
+            {
+                return;
+            }
+
+            RegisterDefinition(GsxDefinition.CouatlStarted, "L:FSDT_GSX_COUATL_STARTED");
+            RegisterDefinition(GsxDefinition.MenuOpen, "L:FSDT_GSX_MENU_OPEN");
+            RegisterDefinition(GsxDefinition.MenuChoice, "L:FSDT_GSX_MENU_CHOICE");
+            RegisterDefinition(GsxDefinition.RemoteControl, "L:FSDT_GSX_SET_REMOTECONTROL");
+            _definitionsRegistered = true;
+        }
+
+        private void RegisterDefinition(GsxDefinition definition, string simVar)
+        {
+            _simconnect.AddToDataDefinition(definition, simVar, "number", SIMCONNECT_DATATYPE.FLOAT64, 0, SimConnect.SIMCONNECT_UNUSED);
+            _simconnect.RegisterDataDefineStruct<SingleValueData>(definition);
+        }
+
+        private void EnableRemoteControl()
+        {
+            SetNumber(GsxDefinition.RemoteControl, 1d);
+        }
+
+        private void RequestState()
+        {
+            _simconnect.RequestDataOnSimObject(GsxRequest.CouatlStarted, GsxDefinition.CouatlStarted, SimConnect.SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD.SECOND, SIMCONNECT_DATA_REQUEST_FLAG.DEFAULT, 0, 0, 0);
+            _simconnect.RequestDataOnSimObject(GsxRequest.RemoteControl, GsxDefinition.RemoteControl, SimConnect.SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD.SECOND, SIMCONNECT_DATA_REQUEST_FLAG.DEFAULT, 0, 0, 0);
+        }
+
+        private void SetNumber(GsxDefinition definition, double value)
+        {
+            if (_simconnect == null)
+            {
+                throw new InvalidOperationException("GSX Remote SimConnect is not connected.");
+            }
+
+            var data = new SingleValueData { value = value };
+            _simconnect.SetDataOnSimObject(definition, SimConnect.SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_DATA_SET_FLAG.DEFAULT, data);
+        }
+
+        private MenuSelectionResult SelectAndSend(IList<string> menuLines, params string[] patterns)
+        {
+            var selection = SelectFromMenu(menuLines, patterns);
+            if (selection.WasSelected)
+            {
+                SetNumber(GsxDefinition.MenuChoice, selection.Index);
+                System.Threading.Thread.Sleep(250);
+            }
+
+            return selection;
+        }
+
+        private static IList<string> WaitForMenuUpdate(string menuPath, DateTime afterUtc, int timeoutMs)
         {
             var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
             while (DateTime.UtcNow < deadline)
             {
-                if (File.Exists(_paths.GsxMenuPath))
+                if (File.Exists(menuPath))
                 {
-                    var info = new FileInfo(_paths.GsxMenuPath);
-                    var lines = GetMenuLines();
+                    var info = new FileInfo(menuPath);
+                    var lines = File.ReadAllLines(menuPath)
+                        .Select(line => (line ?? string.Empty).Trim())
+                        .Where(line => line.Length > 0)
+                        .ToList();
+
                     if (info.LastWriteTimeUtc > afterUtc && lines.Count >= 2)
                     {
                         return lines;
                     }
                 }
 
-                Thread.Sleep(150);
+                System.Threading.Thread.Sleep(150);
             }
 
             return null;
+        }
+
+        private IList<string> WaitForMenuUpdate(DateTime afterUtc, int timeoutMs)
+        {
+            return WaitForMenuUpdate(_paths.GsxMenuPath, afterUtc, timeoutMs);
         }
 
         public static MenuSelectionResult SelectFromMenu(IList<string> menuLines, params string[] patterns)
@@ -112,18 +313,6 @@ namespace SimpleOps.GsxRamp
             }
 
             return MenuSelectionResult.NotFound(match.Reason);
-        }
-
-        private MenuSelectionResult SelectAndSend(IList<string> menuLines, params string[] patterns)
-        {
-            var selection = SelectFromMenu(menuLines, patterns);
-            if (selection.WasSelected)
-            {
-                _hotkeySender.SelectChoice(selection.Index);
-                Thread.Sleep(250);
-            }
-
-            return selection;
         }
 
         public static MenuMatchResult MatchMenuChoice(IList<string> menuLines, params string[] patterns)
@@ -222,6 +411,22 @@ namespace SimpleOps.GsxRamp
 
             return requestTokens.Length > 0;
         }
+
+        private void CloseConnection()
+        {
+            try
+            {
+                _simconnect?.Dispose();
+            }
+            catch
+            {
+            }
+
+            _simconnect = null;
+            _simConnected = false;
+            _couatlStarted = false;
+            _definitionsRegistered = false;
+        }
     }
 
     internal enum MenuMatchStatus
@@ -302,5 +507,25 @@ namespace SimpleOps.GsxRamp
             Normalized = TextUtility.NormalizeText(text);
             Canonical = TextUtility.CanonicalizeMenuText(text);
         }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
+    internal struct SingleValueData
+    {
+        public double value;
+    }
+
+    internal enum GsxDefinition
+    {
+        CouatlStarted = 0,
+        MenuOpen = 1,
+        MenuChoice = 2,
+        RemoteControl = 3
+    }
+
+    internal enum GsxRequest
+    {
+        CouatlStarted = 100,
+        RemoteControl = 101
     }
 }

@@ -9,63 +9,47 @@ namespace SimpleOps.GsxRamp
     {
         private readonly Options _options;
         private readonly TelemetryClient _telemetryClient;
-        private readonly GsxPaths _paths;
         private readonly IGsxMenuController _menuController;
         private readonly RampPhraseParser _parser;
         private readonly RampCommandProcessor _processor;
+        private readonly Action<string> _log;
+        private readonly Action<string> _status;
         private readonly object _actionLock = new object();
 
         private SpeechRecognitionEngine _recognizer;
         private SpeechSynthesizer _synthesizer;
+        private Timer _pollTimer;
         private bool _armed;
         private string _lastStatus;
 
-        public RampController(Options options)
-            : this(options, new TelemetryClient(options.TelemetryUrl), CreateMenuController(), new RampPhraseParser())
-        {
-        }
-
-        internal RampController(Options options, TelemetryClient telemetryClient, IGsxMenuController menuController, RampPhraseParser parser)
+        public RampController(Options options, TelemetryClient telemetryClient, IGsxMenuController menuController, RampPhraseParser parser, Action<string> log, Action<string> status)
         {
             _options = options;
             _telemetryClient = telemetryClient;
             _menuController = menuController;
             _parser = parser;
             _processor = new RampCommandProcessor(_menuController, _options.DryRun, Log);
-            _paths = GsxPaths.Detect();
+            _log = log ?? delegate { };
+            _status = status ?? delegate { };
         }
 
         public void Start()
         {
             Log("SimpleOps GSX ramp controller");
             Log("Telemetry: " + _options.TelemetryUrl);
-            Log("GSX panel: " + _paths.GsxPanelPath);
             InitializeSpeech();
             UpdateTelemetryState();
-        }
-
-        public void RunLoop()
-        {
-            DateTime? endAt = null;
-            if (_options.RunDurationSeconds > 0)
-            {
-                endAt = DateTime.UtcNow.AddSeconds(_options.RunDurationSeconds);
-            }
+            _pollTimer = new Timer(PollTelemetry, null, 1000, 1000);
 
             if (!string.IsNullOrWhiteSpace(_options.TestPhrase))
             {
-                HandlePhrase(_options.TestPhrase);
-                if (!endAt.HasValue)
-                {
-                    return;
-                }
+                ThreadPool.QueueUserWorkItem(delegate { HandlePhrase(_options.TestPhrase); });
             }
+        }
 
-            while (!endAt.HasValue || DateTime.UtcNow < endAt.Value)
-            {
-                UpdateTelemetryState();
-                Thread.Sleep(1000);
-            }
+        private void PollTelemetry(object state)
+        {
+            UpdateTelemetryState();
         }
 
         private void InitializeSpeech()
@@ -164,6 +148,7 @@ namespace SimpleOps.GsxRamp
             }
 
             _lastStatus = message;
+            _status(message);
             Speak(message);
         }
 
@@ -187,20 +172,21 @@ namespace SimpleOps.GsxRamp
             _synthesizer.SpeakAsync(message);
         }
 
-        private static void Log(string message)
+        private void Log(string message)
         {
-            Console.WriteLine("[{0}] {1}", DateTime.Now.ToString("HH:mm:ss"), message);
-        }
-
-        private static IGsxMenuController CreateMenuController()
-        {
-            var paths = GsxPaths.Detect();
-            var hotkeySender = new GsxHotkeySender(paths);
-            return new GsxMenuDriver(paths, hotkeySender);
+            _log(message);
         }
 
         public void Dispose()
         {
+            try
+            {
+                _pollTimer?.Dispose();
+            }
+            catch
+            {
+            }
+
             try
             {
                 if (_recognizer != null)

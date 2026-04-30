@@ -1,8 +1,8 @@
 # SimpleOps GSX Ramp
 
-Compiled C# ramp companion for Microsoft Flight Simulator 2020/2024 with GSX integration.
+Compiled .NET Framework 4.8 Windows desktop app for Microsoft Flight Simulator 2020/2024 with GSX Remote Control integration.
 
-It polls your local telemetry API at `http://127.0.0.1:4789/telemetry`, checks `onGround`, and only becomes active when the aircraft is on the ground. It then listens for voice phrases, opens GSX with the configured GSX hotkey, reads the live GSX menu file, and picks the matching menu entry automatically.
+It polls your local telemetry API at `http://127.0.0.1:4789/telemetry`, checks `onGround`, and only becomes active when the aircraft is on the ground. It listens for voice phrases, enables GSX Remote Control mode through SimConnect, reads the live GSX menu file, and selects the matching menu entry automatically.
 
 ## What it does
 
@@ -16,7 +16,7 @@ It polls your local telemetry API at `http://127.0.0.1:4789/telemetry`, checks `
   - `push back south west`
   - `push south`
   - `push west`
-- Sends the matching request into GSX with the GSX hotkey plus live menu selection
+- Sends the matching request into GSX through GSX Remote Control mode plus live menu selection
 - Skips unsafe actions when the phrase is blocked, weak, unknown, ambiguous, or the GSX menu is ambiguous
 
 ## Project
@@ -32,7 +32,7 @@ The built executables are:
 
 ## Run
 
-Launch the executable directly:
+Launch the desktop application directly:
 
 ```cmd
 C:\Users\Alex\SimpleOPS\SimpleOps.GsxRamp.exe
@@ -57,6 +57,7 @@ C:\Users\Alex\SimpleOPS\SimpleOps.GsxRamp.exe --run-parser-tests
 ## Notes
 
 - GSX must already be installed and running.
+- The app uses the Microsoft Flight Simulator managed SimConnect wrapper and native `SimConnect.dll` copied next to the executable.
 - The FSDreamTeam install root is read from `HKCU\Software\Fsdreamteam\root`.
 - The pushback submenu selection is text-based, so if GSX uses different wording on your setup, update the pattern list in [RampController.cs](C:\Users\Alex\SimpleOPS\src\RampController.cs).
 - Parser tests and dry-run mode do not send real GSX keypresses.
