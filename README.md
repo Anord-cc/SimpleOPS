@@ -1,3 +1,8 @@
+Copyright (c) 2026 Alex Nord. All rights reserved.
+SPDX-FileCopyrightText: 2026 Alex Nord
+SPDX-License-Identifier: LicenseRef-AlexNord-Proprietary-SourceAvailable
+See LICENSE.md for terms. No copying, modification, distribution, commercial use, or AI/ML training except by written permission.
+
 # SimpleOps
 
 Standalone `.NET Framework 4.8` Windows desktop app for Microsoft Flight Simulator 2020/2024 with GSX Remote Control integration.

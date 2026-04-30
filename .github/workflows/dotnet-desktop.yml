@@ -1,3 +1,8 @@
+# Copyright (c) 2026 Alex Nord. All rights reserved.
+# SPDX-FileCopyrightText: 2026 Alex Nord
+# SPDX-License-Identifier: LicenseRef-AlexNord-Proprietary-SourceAvailable
+# See LICENSE.md for terms. No copying, modification, distribution, commercial use, or AI/ML training except by written permission.
+#
 name: Windows Desktop Build
 
 on:
@@ -101,7 +106,7 @@ jobs:
           Copy-Item $env:EXE_PATH dist\package\
           Copy-Item bin\Release\*.dll dist\package\ -ErrorAction Stop
           Copy-Item README.md dist\package\ -ErrorAction SilentlyContinue
-          Copy-Item license.md dist\package\ -ErrorAction SilentlyContinue
+          Copy-Item LICENSE.md dist\package\ -ErrorAction SilentlyContinue
 
           @(
             'SimpleOps.exe',
