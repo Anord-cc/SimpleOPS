@@ -20,6 +20,7 @@ namespace SimpleOps.GsxRamp
         private bool _definitionsRegistered;
         private bool _simConnected;
         private bool _couatlStarted;
+        private DateTime _nextConnectAttemptUtc = DateTime.MinValue;
 
         public GsxMenuDriver(GsxPaths paths, IntPtr windowHandle, int messageId, Action<string> log)
         {
@@ -27,8 +28,11 @@ namespace SimpleOps.GsxRamp
             _windowHandle = windowHandle;
             _messageId = messageId;
             _log = log ?? delegate { };
+            StatusText = "GSX Remote Control starting.";
             TryConnect();
         }
+
+        public string StatusText { get; private set; }
 
         public bool ProcessWindowMessage(ref Message m)
         {
@@ -43,7 +47,8 @@ namespace SimpleOps.GsxRamp
             }
             catch (Exception ex)
             {
-                _log("GSX Remote receive error: " + ex.Message);
+                StatusText = "GSX Remote receive warning: " + ex.Message;
+                _log(StatusText);
                 CloseConnection();
             }
 
@@ -94,11 +99,13 @@ namespace SimpleOps.GsxRamp
                 TryConnect();
                 if (!_simConnected)
                 {
+                    StatusText = "GSX Remote not connected to SimConnect yet.";
                     return MenuSelectionResult.NotDetected("GSX Remote Control is not connected to SimConnect yet.");
                 }
 
                 if (!_couatlStarted)
                 {
+                    StatusText = "GSX/Couatl is not ready yet.";
                     return MenuSelectionResult.NotDetected("GSX/Couatl is not ready yet.");
                 }
 
@@ -108,6 +115,7 @@ namespace SimpleOps.GsxRamp
                 var menuLines = WaitForMenuUpdate(openedAtUtc, 8000);
                 if (menuLines == null)
                 {
+                    StatusText = "GSX menu was not detected for " + reason + ".";
                     return MenuSelectionResult.NotDetected("GSX menu was not detected for " + reason + ".");
                 }
 
@@ -121,6 +129,7 @@ namespace SimpleOps.GsxRamp
             {
                 if (!_simConnected || !_couatlStarted)
                 {
+                    StatusText = "GSX Remote Control is not ready.";
                     return MenuSelectionResult.NotDetected("GSX Remote Control is not ready.");
                 }
 
@@ -135,7 +144,7 @@ namespace SimpleOps.GsxRamp
 
         private void TryConnect()
         {
-            if (_simconnect != null || _windowHandle == IntPtr.Zero)
+            if (_simconnect != null || _windowHandle == IntPtr.Zero || DateTime.UtcNow < _nextConnectAttemptUtc)
             {
                 return;
             }
@@ -147,25 +156,32 @@ namespace SimpleOps.GsxRamp
                 _simconnect.OnRecvQuit += OnRecvQuit;
                 _simconnect.OnRecvException += OnRecvException;
                 _simconnect.OnRecvSimobjectData += OnRecvSimobjectData;
+                StatusText = "GSX Remote waiting for SimConnect.";
                 _log("GSX Remote SimConnect object created.");
             }
             catch (COMException ex)
             {
                 _simconnect = null;
                 _simConnected = false;
-                _log("GSX Remote waiting for SimConnect: " + ex.Message);
+                _nextConnectAttemptUtc = DateTime.UtcNow.AddSeconds(2);
+                StatusText = "GSX Remote waiting for SimConnect: " + ex.Message;
+                _log(StatusText);
             }
             catch (Exception ex)
             {
                 _simconnect = null;
                 _simConnected = false;
-                _log("GSX Remote startup error: " + ex.Message);
+                _nextConnectAttemptUtc = DateTime.UtcNow.AddSeconds(5);
+                StatusText = "GSX Remote startup warning: " + ex.Message;
+                _log(StatusText);
             }
         }
 
         private void OnRecvOpen(SimConnect sender, SIMCONNECT_RECV_OPEN data)
         {
             _simConnected = true;
+            _nextConnectAttemptUtc = DateTime.MinValue;
+            StatusText = "GSX Remote connected to MSFS.";
             _log("GSX Remote connected to MSFS.");
             EnsureDefinitionsRegistered();
             EnableRemoteControl();
@@ -174,6 +190,7 @@ namespace SimpleOps.GsxRamp
 
         private void OnRecvQuit(SimConnect sender, SIMCONNECT_RECV data)
         {
+            StatusText = "GSX Remote disconnected from MSFS.";
             _log("GSX Remote SimConnect quit received.");
             CloseConnection();
         }
@@ -191,6 +208,7 @@ namespace SimpleOps.GsxRamp
                 message += " sendId=" + data.dwSendID;
             }
 
+            StatusText = message;
             _log(message);
         }
 
@@ -200,6 +218,7 @@ namespace SimpleOps.GsxRamp
             if ((GsxRequest)data.dwRequestID == GsxRequest.CouatlStarted)
             {
                 _couatlStarted = value.value != 0d;
+                StatusText = _couatlStarted ? "GSX Remote ready." : "GSX Remote waiting for Couatl.";
             }
             else if ((GsxRequest)data.dwRequestID == GsxRequest.RemoteControl)
             {
@@ -259,6 +278,7 @@ namespace SimpleOps.GsxRamp
             {
                 SetNumber(GsxDefinition.MenuChoice, selection.Index);
                 System.Threading.Thread.Sleep(250);
+                StatusText = "GSX selected: " + selection.Text;
             }
 
             return selection;
@@ -426,6 +446,7 @@ namespace SimpleOps.GsxRamp
             _simConnected = false;
             _couatlStarted = false;
             _definitionsRegistered = false;
+            _nextConnectAttemptUtc = DateTime.UtcNow.AddSeconds(2);
         }
     }
 

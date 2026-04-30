@@ -1,63 +1,63 @@
-# SimpleOps GSX Ramp
+# SimpleOps
 
-Compiled .NET Framework 4.8 Windows desktop app for Microsoft Flight Simulator 2020/2024 with GSX Remote Control integration.
+Standalone `.NET Framework 4.8` Windows desktop app for Microsoft Flight Simulator 2020/2024 with GSX Remote Control integration.
 
-It polls your local telemetry API at `http://127.0.0.1:4789/telemetry`, checks `onGround`, and only becomes active when the aircraft is on the ground. It listens for voice phrases, enables GSX Remote Control mode through SimConnect, reads the live GSX menu file, and selects the matching menu entry automatically.
+It polls `http://127.0.0.1:4789/telemetry`, keeps the `onGround` safety gate intact, listens for ramp phrases, and drives GSX through SimConnect Remote Control mode plus live GSX menu matching.
 
-## What it does
+## Highlights
 
-- Polls your local telemetry bridge
-- Arms only when telemetry says `onGround = true`
-- Recognizes:
-  - `connect ground power`
-  - `connect ground power unit`
-  - `prepare for pushback`
-  - `push south west`
-  - `push back south west`
-  - `push south`
-  - `push west`
-- Sends the matching request into GSX through GSX Remote Control mode plus live menu selection
-- Skips unsafe actions when the phrase is blocked, weak, unknown, ambiguous, or the GSX menu is ambiguous
+- Real desktop UI with live status, logs, parser diagnostics, and in-app settings
+- Persisted settings in `%AppData%\SimpleOps\settings.json`
+  - If `%AppData%` is unavailable, the app falls back to a local `appdata` folder beside the executable
+- OpenAI ramp voice playback with the API key stored in Windows Credential Manager
+- Selectable microphone and speaker devices
+- Radio-style output controls
+  - volume
+  - left / right / both channel
+  - pan
+- Built-in deterministic phrase coverage plus user-editable aliases in `%AppData%\SimpleOps\phrases.json`
+- GSX safety checks for unknown, weak, blocked, missing-menu, and ambiguous-menu cases
 
-## Project
+## Main files
 
-The source is in a proper `.NET Framework 4.8` project:
-
+- [SimpleOps.exe](C:\Users\Alex\SimpleOPS\SimpleOps.exe)
 - [SimpleOps.GsxRamp.csproj](C:\Users\Alex\SimpleOPS\SimpleOps.GsxRamp.csproj)
-
-The built executables are:
-
-- [SimpleOps.GsxRamp.exe](C:\Users\Alex\SimpleOPS\SimpleOps.GsxRamp.exe)
-- [SimpleOps.GsxRamp.exe](C:\Users\Alex\SimpleOPS\bin\Release\SimpleOps.GsxRamp.exe)
+- [RampControlForm.cs](C:\Users\Alex\SimpleOPS\src\RampControlForm.cs)
+- [RampController.cs](C:\Users\Alex\SimpleOPS\src\RampController.cs)
+- [OpenAiVoiceOutputService.cs](C:\Users\Alex\SimpleOPS\src\OpenAiVoiceOutputService.cs)
+- [LocalSpeechInputService.cs](C:\Users\Alex\SimpleOPS\src\LocalSpeechInputService.cs)
 
 ## Run
 
-Launch the desktop application directly:
+Launch the desktop app directly:
 
 ```cmd
-C:\Users\Alex\SimpleOPS\SimpleOps.GsxRamp.exe
+C:\Users\Alex\SimpleOPS\SimpleOps.exe
 ```
 
 ## Helpful flags
 
+Dry-run without live GSX actions:
+
 ```cmd
-C:\Users\Alex\SimpleOPS\SimpleOps.GsxRamp.exe --no-speech --run-duration-seconds 5
+C:\Users\Alex\SimpleOPS\SimpleOps.exe --dry-run
 ```
 
+Dry-run one phrase:
+
 ```cmd
-C:\Users\Alex\SimpleOPS\SimpleOps.GsxRamp.exe --dry-run --no-speech --test-phrase "push south west"
+C:\Users\Alex\SimpleOPS\SimpleOps.exe --dry-run --no-speech --no-voice --test-phrase "request catering"
 ```
 
-Run the built-in parser and safety harness without sending live GSX keypresses:
+Run the built-in parser and safety harness:
 
 ```cmd
-C:\Users\Alex\SimpleOPS\SimpleOps.GsxRamp.exe --run-parser-tests
+C:\Users\Alex\SimpleOPS\SimpleOps.exe --run-parser-tests
 ```
 
 ## Notes
 
 - GSX must already be installed and running.
-- The app uses the Microsoft Flight Simulator managed SimConnect wrapper and native `SimConnect.dll` copied next to the executable.
-- The FSDreamTeam install root is read from `HKCU\Software\Fsdreamteam\root`.
-- The pushback submenu selection is text-based, so if GSX uses different wording on your setup, update the pattern list in [RampController.cs](C:\Users\Alex\SimpleOPS\src\RampController.cs).
-- Parser tests and dry-run mode do not send real GSX keypresses.
+- The app keeps the `onGround == true` gate exactly intact before GSX actions are allowed.
+- OpenAI is used for ramp voice output only in this version. Speech recognition remains local.
+- The project now uses repo-local SimConnect and NAudio dependencies so the GitHub desktop build can run off-machine.

@@ -1,5 +1,3 @@
-# .github/workflows/windows-desktop.yml
-
 name: Windows Desktop Build
 
 on:
@@ -20,7 +18,7 @@ env:
   PROJECT_FILE: SimpleOps.GsxRamp.csproj
   CONFIGURATION: Release
   PLATFORM: x64
-  EXE_PATH: bin\Release\SimpleOps.GsxRamp.exe
+  EXE_PATH: bin\Release\SimpleOps.exe
   ZIP_NAME: SimpleOPS-windows-x64.zip
 
 jobs:
@@ -45,12 +43,18 @@ jobs:
             /p:Configuration=$env:CONFIGURATION `
             /p:Platform=$env:PLATFORM `
             /p:PlatformTarget=x64 `
+            /p:UseSharedCompilation=false `
             /m
 
       - name: Run parser tests
         shell: pwsh
         run: |
           & $env:EXE_PATH --run-parser-tests
+
+      - name: Run dry-run smoke test
+        shell: pwsh
+        run: |
+          & $env:EXE_PATH --no-speech --no-voice --dry-run --run-duration-seconds 1
 
       # Optional signing.
       # This only runs if you add WINDOWS_SIGNING_CERT_BASE64 as a GitHub secret.
@@ -95,8 +99,23 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist\package | Out-Null
 
           Copy-Item $env:EXE_PATH dist\package\
+          Copy-Item bin\Release\*.dll dist\package\ -ErrorAction Stop
           Copy-Item README.md dist\package\ -ErrorAction SilentlyContinue
-          Copy-Item LICENSE dist\package\ -ErrorAction SilentlyContinue
+          Copy-Item license.md dist\package\ -ErrorAction SilentlyContinue
+
+          @(
+            'SimpleOps.exe',
+            'Microsoft.FlightSimulator.SimConnect.dll',
+            'SimConnect.dll',
+            'NAudio.dll',
+            'NAudio.Core.dll',
+            'NAudio.Wasapi.dll',
+            'NAudio.WinMM.dll'
+          ) | ForEach-Object {
+            if (-not (Test-Path (Join-Path 'dist\\package' $_))) {
+              throw "Missing packaged dependency: $_"
+            }
+          }
 
           Compress-Archive `
             -Path dist\package\* `

@@ -8,6 +8,24 @@ namespace SimpleOps.GsxRamp
         [STAThread]
         private static int Main(string[] args)
         {
+            var appPaths = AppPaths.Create();
+            using (var logger = new AppLogger(appPaths))
+            {
+                Application.ThreadException += delegate(object sender, System.Threading.ThreadExceptionEventArgs e)
+                {
+                    logger.Log("UI thread exception: " + e.Exception);
+                };
+                AppDomain.CurrentDomain.UnhandledException += delegate(object sender, UnhandledExceptionEventArgs e)
+                {
+                    logger.Log("Unhandled exception: " + Convert.ToString(e.ExceptionObject));
+                };
+
+                return Run(args, appPaths, logger);
+            }
+        }
+
+        private static int Run(string[] args, AppPaths appPaths, AppLogger logger)
+        {
             Options options;
             try
             {
@@ -27,13 +45,14 @@ namespace SimpleOps.GsxRamp
                         "--run-duration-seconds <n>" + Environment.NewLine +
                         "--test-phrase <text>" + Environment.NewLine +
                         "--run-parser-tests",
-                        "SimpleOps GSX Ramp",
+                        "SimpleOps",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
                     return 0;
                 }
 
-                MessageBox.Show(ex.Message, "SimpleOps GSX Ramp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                logger.Log("Argument error: " + ex.Message);
+                MessageBox.Show(ex.Message, "SimpleOps", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return 1;
             }
 
@@ -41,23 +60,23 @@ namespace SimpleOps.GsxRamp
             {
                 if (options.RunParserTests)
                 {
-                    int result = ParserTestHarness.Run();
-                    MessageBox.Show(
-                        result == 0 ? "Parser tests passed." : "Parser tests failed. Run from a terminal if you need exit-code visibility.",
-                        "SimpleOps GSX Ramp",
-                        MessageBoxButtons.OK,
-                        result == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
-                    return result;
+                    return ParserTestHarness.Run(logger.Log);
                 }
+
+                var settingsStore = new JsonSettingsStore(appPaths, logger.Log);
+                var credentialStore = new WindowsCredentialStore();
+                var phraseAliasStore = new PhraseAliasStore(appPaths, logger.Log);
+                var appSettings = options.ApplyTo(settingsStore.Load());
 
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new RampControlForm(options));
+                Application.Run(new RampControlForm(options, appPaths, settingsStore, credentialStore, phraseAliasStore, appSettings, logger));
                 return 0;
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.ToString(), "SimpleOps GSX Ramp", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                logger.Log("Startup error: " + ex);
+                MessageBox.Show(ex.ToString(), "SimpleOps", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return 1;
             }
         }

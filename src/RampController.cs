@@ -1,6 +1,4 @@
 using System;
-using System.Speech.Recognition;
-using System.Speech.Synthesis;
 using System.Threading;
 
 namespace SimpleOps.GsxRamp
@@ -8,35 +6,79 @@ namespace SimpleOps.GsxRamp
     internal sealed class RampController : IDisposable
     {
         private readonly Options _options;
-        private readonly TelemetryClient _telemetryClient;
+        private readonly AppSettings _settings;
+        private readonly ITelemetryClient _telemetryClient;
         private readonly IGsxMenuController _menuController;
         private readonly RampPhraseParser _parser;
         private readonly RampCommandProcessor _processor;
+        private readonly ISpeechInputService _speechInputService;
+        private readonly IVoiceOutputService _voiceOutputService;
         private readonly Action<string> _log;
         private readonly Action<string> _status;
         private readonly object _actionLock = new object();
 
-        private SpeechRecognitionEngine _recognizer;
-        private SpeechSynthesizer _synthesizer;
         private Timer _pollTimer;
         private bool _armed;
         private string _lastStatus;
 
-        public RampController(Options options, TelemetryClient telemetryClient, IGsxMenuController menuController, RampPhraseParser parser, Action<string> log, Action<string> status)
+        public RampController(
+            Options options,
+            AppSettings settings,
+            ITelemetryClient telemetryClient,
+            IGsxMenuController menuController,
+            RampPhraseParser parser,
+            ISpeechInputService speechInputService,
+            IVoiceOutputService voiceOutputService,
+            Action<string> log,
+            Action<string> status)
         {
             _options = options;
+            _settings = settings ?? AppSettings.CreateDefault();
             _telemetryClient = telemetryClient;
             _menuController = menuController;
             _parser = parser;
-            _processor = new RampCommandProcessor(_menuController, _options.DryRun, Log);
+            _speechInputService = speechInputService;
+            _voiceOutputService = voiceOutputService;
+            _processor = new RampCommandProcessor(_menuController, _settings.DryRun, Log);
             _log = log ?? delegate { };
             _status = status ?? delegate { };
+            TelemetryStatusText = "Waiting for telemetry...";
+            LastCommandText = "No commands yet.";
+        }
+
+        public bool IsArmed
+        {
+            get { return _armed; }
+        }
+
+        public string TelemetryStatusText { get; private set; }
+
+        public string LastCommandText { get; private set; }
+
+        public string SpeechInputStatusText
+        {
+            get { return _speechInputService == null ? "Speech input unavailable." : _speechInputService.StatusText; }
+        }
+
+        public string VoiceOutputStatusText
+        {
+            get { return _voiceOutputService == null ? "Voice output unavailable." : _voiceOutputService.StatusText; }
+        }
+
+        public string GsxStatusText
+        {
+            get { return _menuController == null ? "GSX unavailable." : _menuController.StatusText; }
         }
 
         public void Start()
         {
-            Log("SimpleOps GSX ramp controller");
-            Log("Telemetry: " + _options.TelemetryUrl);
+            Log("SimpleOps desktop controller");
+            Log("Telemetry: " + _settings.TelemetryUrl);
+            if (_settings.DryRun)
+            {
+                Log("Dry-run mode is enabled.");
+            }
+
             InitializeSpeech();
             UpdateTelemetryState();
             _pollTimer = new Timer(PollTelemetry, null, 1000, 1000);
@@ -47,6 +89,11 @@ namespace SimpleOps.GsxRamp
             }
         }
 
+        public RampCommand AnalyzePhrase(string phrase)
+        {
+            return _parser.Parse(phrase);
+        }
+
         private void PollTelemetry(object state)
         {
             UpdateTelemetryState();
@@ -54,43 +101,39 @@ namespace SimpleOps.GsxRamp
 
         private void InitializeSpeech()
         {
-            if (_options.NoSpeech)
+            if (_options.NoSpeech || _speechInputService == null)
             {
                 Log("Speech recognition disabled.");
                 return;
             }
 
-            var culture = new System.Globalization.CultureInfo("en-US");
-            _recognizer = new SpeechRecognitionEngine(culture);
-            _recognizer.SetInputToDefaultAudioDevice();
-
-            var choices = new Choices();
-            ParserTestHarness.AddAllRecognizedPhrases(choices);
-
-            var builder = new GrammarBuilder();
-            builder.Culture = culture;
-            builder.Append(choices);
-
-            var grammar = new Grammar(builder);
-            grammar.Name = "SimpleOpsRampGrammar";
-            _recognizer.LoadGrammar(grammar);
-            _recognizer.SpeechRecognized += OnSpeechRecognized;
-            _recognizer.RecognizeAsync(RecognizeMode.Multiple);
+            _speechInputService.Start(_parser.GetAllRecognizedPhrases(), OnRecognizedPhrase);
             Log("Speech recognition armed.");
         }
 
-        private void OnSpeechRecognized(object sender, SpeechRecognizedEventArgs e)
+        private void OnRecognizedPhrase(RecognizedPhrase phrase)
         {
-            if (e.Result == null || e.Result.Confidence < _options.MinConfidence)
+            if (phrase == null || string.IsNullOrWhiteSpace(phrase.Text))
+            {
+                return;
+            }
+
+            if (phrase.Confidence < _settings.MinConfidence)
             {
                 Log("Speech phrase rejected due to engine confidence.");
                 return;
             }
 
-            Log(string.Format("Recognized '{0}' ({1:P0})", e.Result.Text, e.Result.Confidence));
+            if (phrase.AudioLevel < _settings.InputSensitivityGate)
+            {
+                Log("Speech phrase rejected due to input sensitivity gate.");
+                return;
+            }
+
+            Log(string.Format("Recognized '{0}' ({1:P0}) level={2:0.00}", phrase.Text, phrase.Confidence, phrase.AudioLevel));
             try
             {
-                HandlePhrase(e.Result.Text);
+                HandlePhrase(phrase.Text);
             }
             catch (Exception ex)
             {
@@ -105,6 +148,7 @@ namespace SimpleOps.GsxRamp
             {
                 var snapshot = _telemetryClient.GetSnapshot();
                 var armed = snapshot != null && snapshot.OnGround && snapshot.Connected && snapshot.Online;
+                TelemetryStatusText = BuildTelemetryStatus(snapshot, armed);
                 if (armed != _armed)
                 {
                     _armed = armed;
@@ -120,8 +164,24 @@ namespace SimpleOps.GsxRamp
             }
             catch (Exception ex)
             {
-                Log("Telemetry error: " + ex.Message);
+                TelemetryStatusText = "Telemetry warning: " + ex.Message;
+                Log(TelemetryStatusText);
             }
+        }
+
+        private static string BuildTelemetryStatus(TelemetrySnapshot snapshot, bool armed)
+        {
+            if (snapshot == null)
+            {
+                return "Telemetry unavailable.";
+            }
+
+            return string.Format(
+                "Telemetry online={0} connected={1} onGround={2} armed={3}",
+                snapshot.Online,
+                snapshot.Connected,
+                snapshot.OnGround,
+                armed);
         }
 
         private void HandlePhrase(string phrase)
@@ -129,6 +189,7 @@ namespace SimpleOps.GsxRamp
             lock (_actionLock)
             {
                 var command = _parser.Parse(phrase);
+                LastCommandText = command.Type + " from '" + command.RawPhrase + "' (" + command.Quality + ")";
                 Log("Parsed '" + command.RawPhrase + "' => " + command.Type + " (" + command.Quality + "). " + command.Reason);
 
                 bool armed = _armed || !string.IsNullOrWhiteSpace(_options.TestPhrase);
@@ -156,20 +217,12 @@ namespace SimpleOps.GsxRamp
         {
             Log(message);
 
-            if (_options.NoVoiceFeedback)
+            if (_options.NoVoiceFeedback || _voiceOutputService == null)
             {
                 return;
             }
 
-            if (_synthesizer == null)
-            {
-                _synthesizer = new SpeechSynthesizer();
-                _synthesizer.SetOutputToDefaultAudioDevice();
-                _synthesizer.Rate = 1;
-            }
-
-            _synthesizer.SpeakAsyncCancelAll();
-            _synthesizer.SpeakAsync(message);
+            _voiceOutputService.SpeakAsync(message);
         }
 
         private void Log(string message)
@@ -189,24 +242,7 @@ namespace SimpleOps.GsxRamp
 
             try
             {
-                if (_recognizer != null)
-                {
-                    _recognizer.RecognizeAsyncCancel();
-                    _recognizer.RecognizeAsyncStop();
-                    _recognizer.Dispose();
-                }
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                if (_synthesizer != null)
-                {
-                    _synthesizer.SpeakAsyncCancelAll();
-                    _synthesizer.Dispose();
-                }
+                _speechInputService?.Stop();
             }
             catch
             {

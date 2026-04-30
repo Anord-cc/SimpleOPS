@@ -42,6 +42,12 @@ namespace SimpleOps.GsxRamp
                 return "Phrase ignored.";
             }
 
+            if (command.IsActionableGsx && command.Quality != MatchQuality.Strong)
+            {
+                _log("Ignoring non-strong GSX command: " + command.Reason);
+                return "Phrase ignored because the GSX match was not strong enough.";
+            }
+
             if (!command.IsActionableGsx)
             {
                 return BuildNonGsxResponse(command);

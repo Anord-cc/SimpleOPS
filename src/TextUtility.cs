@@ -10,25 +10,31 @@ namespace SimpleOps.GsxRamp
         {
             { "flight deck", "cockpit" },
             { "ground crew", "ramp" },
-            { "jet bridge", "jetway" },
             { "jetbridge", "jetway" },
+            { "jet bridge", "jetway" },
             { "bags", "baggage" },
             { "bag", "baggage" },
             { "refuel", "refueling" },
             { "refueling", "fueling" },
             { "fuel truck", "refueling" },
+            { "fueling truck", "refueling" },
             { "de ice", "deicing" },
             { "deice", "deicing" },
             { "de planing", "deboarding" },
             { "deplaning", "deboarding" },
             { "disembarkation", "deboarding" },
             { "push back", "pushback" },
+            { "push back tug", "pushback tug" },
             { "passenger stairs", "stairs" },
             { "catering truck", "catering" },
             { "head set", "headset" },
             { "follow me car", "follow me" },
             { "tow bar", "towbar" },
-            { "jet way", "jetway" }
+            { "jet way", "jetway" },
+            { "ground power unit", "gpu" },
+            { "ground power", "gpu" },
+            { "external power", "gpu" },
+            { "gpu", "gpu" }
         };
 
         public static string NormalizeText(string text)
@@ -47,14 +53,17 @@ namespace SimpleOps.GsxRamp
         {
             var normalized = NormalizeText(text);
             normalized = ReplaceWholeWord(normalized, "jet bridge", "jetway");
-            normalized = ReplaceWholeWord(normalized, "baggage", "baggage");
+            normalized = ReplaceWholeWord(normalized, "bags", "baggage");
             normalized = ReplaceWholeWord(normalized, "fuel", "refueling");
+            normalized = ReplaceWholeWord(normalized, "fueling", "refueling");
             normalized = ReplaceWholeWord(normalized, "deice", "deicing");
             normalized = ReplaceWholeWord(normalized, "push", "pushback");
             normalized = ReplaceWholeWord(normalized, "stairs", "passenger stairs");
             normalized = ReplaceWholeWord(normalized, "catering truck", "catering");
             normalized = ReplaceWholeWord(normalized, "jetway", "jetway");
             normalized = ReplaceWholeWord(normalized, "jetbridge", "jetway");
+            normalized = ReplaceWholeWord(normalized, "follow me car", "follow me");
+            normalized = ReplaceWholeWord(normalized, "gpu", "ground power");
             return string.Join(" ", normalized.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
         }
 

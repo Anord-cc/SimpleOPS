@@ -4,11 +4,11 @@ namespace SimpleOps.GsxRamp
 {
     internal sealed class Options
     {
-        public string TelemetryUrl = "http://127.0.0.1:4789/telemetry";
-        public double MinConfidence = 0.72d;
+        public string TelemetryUrlOverride;
+        public double? MinConfidenceOverride;
         public bool NoSpeech;
         public bool NoVoiceFeedback;
-        public bool DryRun;
+        public bool ForceDryRun;
         public int RunDurationSeconds;
         public string TestPhrase;
         public bool RunParserTests;
@@ -24,11 +24,11 @@ namespace SimpleOps.GsxRamp
                 {
                     case "--telemetry-url":
                         if (i + 1 >= args.Length) throw new ArgumentException("Missing value for --telemetry-url");
-                        options.TelemetryUrl = args[++i];
+                        options.TelemetryUrlOverride = args[++i];
                         break;
                     case "--min-confidence":
                         if (i + 1 >= args.Length) throw new ArgumentException("Missing value for --min-confidence");
-                        options.MinConfidence = double.Parse(args[++i], System.Globalization.CultureInfo.InvariantCulture);
+                        options.MinConfidenceOverride = double.Parse(args[++i], System.Globalization.CultureInfo.InvariantCulture);
                         break;
                     case "--no-speech":
                         options.NoSpeech = true;
@@ -37,7 +37,7 @@ namespace SimpleOps.GsxRamp
                         options.NoVoiceFeedback = true;
                         break;
                     case "--dry-run":
-                        options.DryRun = true;
+                        options.ForceDryRun = true;
                         break;
                     case "--run-duration-seconds":
                         if (i + 1 >= args.Length) throw new ArgumentException("Missing value for --run-duration-seconds");
@@ -62,9 +62,30 @@ namespace SimpleOps.GsxRamp
             return options;
         }
 
+        public AppSettings ApplyTo(AppSettings settings)
+        {
+            var merged = (settings ?? AppSettings.CreateDefault()).Clone();
+            if (!string.IsNullOrWhiteSpace(TelemetryUrlOverride))
+            {
+                merged.TelemetryUrl = TelemetryUrlOverride;
+            }
+
+            if (MinConfidenceOverride.HasValue)
+            {
+                merged.MinConfidence = MinConfidenceOverride.Value;
+            }
+
+            if (ForceDryRun)
+            {
+                merged.DryRun = true;
+            }
+
+            return merged;
+        }
+
         public static void PrintUsage()
         {
-            Console.WriteLine("SimpleOps.GsxRamp");
+            Console.WriteLine("SimpleOps");
             Console.WriteLine();
             Console.WriteLine("Arguments:");
             Console.WriteLine("  --telemetry-url <url>         Telemetry endpoint. Default http://127.0.0.1:4789/telemetry");

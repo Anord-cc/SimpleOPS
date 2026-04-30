@@ -7,7 +7,7 @@
     <ProjectGuid>{5DD281AB-D51D-489B-A75D-5A370B52E8B3}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <RootNamespace>SimpleOps.GsxRamp</RootNamespace>
-    <AssemblyName>SimpleOps.GsxRamp</AssemblyName>
+    <AssemblyName>SimpleOps</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -31,19 +31,46 @@
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Web.Extensions" />
     <Reference Include="Microsoft.CSharp" />
+    <Reference Include="NAudio">
+      <HintPath>packages\NAudio.2.2.1\expanded\lib\net472\NAudio.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="NAudio.Core">
+      <HintPath>packages\NAudio.Core.2.2.1\expanded\lib\netstandard2.0\NAudio.Core.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="NAudio.Wasapi">
+      <HintPath>packages\NAudio.Wasapi.2.2.1\expanded\lib\netstandard2.0\NAudio.Wasapi.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="NAudio.WinMM">
+      <HintPath>packages\NAudio.WinMM.2.2.1\expanded\lib\netstandard2.0\NAudio.WinMM.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
     <Reference Include="Microsoft.FlightSimulator.SimConnect">
-      <HintPath>C:\MSFS 2024 SDK\SimConnect SDK\lib\managed\Microsoft.FlightSimulator.SimConnect.dll</HintPath>
+      <HintPath>lib\SimConnect\Microsoft.FlightSimulator.SimConnect.dll</HintPath>
       <Private>true</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="src\AppLogger.cs" />
+    <Compile Include="src\AppPaths.cs" />
+    <Compile Include="src\AppSettings.cs" />
+    <Compile Include="src\AudioDeviceCatalog.cs" />
+    <Compile Include="src\DisabledSpeechInputService.cs" />
     <Compile Include="src\Program.cs" />
     <Compile Include="src\Options.cs" />
     <Compile Include="src\TelemetrySnapshot.cs" />
+    <Compile Include="src\ITelemetryClient.cs" />
     <Compile Include="src\TelemetryClient.cs" />
     <Compile Include="src\GsxPaths.cs" />
     <Compile Include="src\IGsxMenuController.cs" />
     <Compile Include="src\GsxMenuDriver.cs" />
+    <Compile Include="src\ICredentialStore.cs" />
+    <Compile Include="src\ISettingsStore.cs" />
+    <Compile Include="src\JsonSettingsStore.cs" />
+    <Compile Include="src\PhraseAliasStore.cs" />
+    <Compile Include="src\WindowsCredentialStore.cs" />
     <Compile Include="src\TextUtility.cs" />
     <Compile Include="src\RampIntent.cs" />
     <Compile Include="src\FuelParser.cs" />
@@ -53,17 +80,23 @@
     <Compile Include="src\RampPhraseParser.Support.cs" />
     <Compile Include="src\RampCommandProcessor.cs" />
     <Compile Include="src\ParserTestHarness.cs" />
+    <Compile Include="src\SpeechServices.cs" />
+    <Compile Include="src\LocalSpeechInputService.cs" />
+    <Compile Include="src\OpenAiVoiceOutputService.cs" />
+    <Compile Include="src\SilentVoiceOutputService.cs" />
+    <Compile Include="src\NullGsxMenuController.cs" />
     <Compile Include="src\RampController.cs" />
     <Compile Include="src\RampControlForm.cs" />
+    <Compile Include="src\SettingsForm.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="CopyManagedSimConnect" AfterTargets="Build">
     <Copy
-      SourceFiles="C:\MSFS 2024 SDK\SimConnect SDK\lib\managed\Microsoft.FlightSimulator.SimConnect.dll"
+      SourceFiles="lib\SimConnect\Microsoft.FlightSimulator.SimConnect.dll"
       DestinationFolder="$(TargetDir)"
       SkipUnchangedFiles="true" />
     <Copy
-      SourceFiles="C:\MSFS 2024 SDK\SimConnect SDK\lib\SimConnect.dll"
+      SourceFiles="lib\SimConnect\SimConnect.dll"
       DestinationFolder="$(TargetDir)"
       SkipUnchangedFiles="true" />
   </Target>

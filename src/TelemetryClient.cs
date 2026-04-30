@@ -6,7 +6,7 @@ using System.Web.Script.Serialization;
 
 namespace SimpleOps.GsxRamp
 {
-    internal sealed class TelemetryClient
+    internal sealed class TelemetryClient : ITelemetryClient
     {
         private readonly string _url;
         private readonly JavaScriptSerializer _serializer = new JavaScriptSerializer();

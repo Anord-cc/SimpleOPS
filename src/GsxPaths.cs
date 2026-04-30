@@ -14,17 +14,31 @@ namespace SimpleOps.GsxRamp
 
         public static GsxPaths Detect()
         {
+            string error;
+            var paths = TryDetect(out error);
+            if (paths == null)
+            {
+                throw new InvalidOperationException(error);
+            }
+
+            return paths;
+        }
+
+        public static GsxPaths TryDetect(out string error)
+        {
             using (var key = Registry.CurrentUser.OpenSubKey(@"Software\Fsdreamteam"))
             {
                 if (key == null)
                 {
-                    throw new InvalidOperationException(@"FSDreamTeam registry key not found at HKCU\Software\Fsdreamteam.");
+                    error = @"FSDreamTeam registry key not found at HKCU\Software\Fsdreamteam.";
+                    return null;
                 }
 
                 var root = key.GetValue("root") as string;
                 if (string.IsNullOrWhiteSpace(root))
                 {
-                    throw new InvalidOperationException(@"FSDreamTeam registry value 'root' is missing.");
+                    error = @"FSDreamTeam registry value 'root' is missing.";
+                    return null;
                 }
 
                 var paths = new GsxPaths();
@@ -36,14 +50,17 @@ namespace SimpleOps.GsxRamp
 
                 if (!Directory.Exists(paths.GsxPanelPath))
                 {
-                    throw new InvalidOperationException("GSX panel path not found: " + paths.GsxPanelPath);
+                    error = "GSX panel path not found: " + paths.GsxPanelPath;
+                    return null;
                 }
 
                 if (!File.Exists(paths.GsxHotkeyPath))
                 {
-                    throw new InvalidOperationException("GSX hotkey.json not found: " + paths.GsxHotkeyPath);
+                    error = "GSX hotkey.json not found: " + paths.GsxHotkeyPath;
+                    return null;
                 }
 
+                error = null;
                 return paths;
             }
         }
