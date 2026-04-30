@@ -4,3 +4,21 @@
 [06:54:15] Dry-run mode is enabled.
 [06:54:15] Speech recognition disabled.
 [06:54:17] Telemetry warning: Unable to connect to the remote server
+[17:46:33] GSX Remote waiting for SimConnect: Error HRESULT E_FAIL has been returned from a call to a COM component.
+[17:46:33] SimpleOps desktop controller
+[17:46:33] Telemetry: http://127.0.0.1:4789/telemetry
+[17:46:33] Dry-run mode is enabled.
+[17:46:33] Speech recognition disabled.
+[17:46:35] Telemetry warning: Unable to connect to the remote server
+[17:47:02] GSX Remote waiting for SimConnect: Error HRESULT E_FAIL has been returned from a call to a COM component.
+[17:47:02] SimpleOps desktop controller
+[17:47:02] Telemetry: http://127.0.0.1:4789/telemetry
+[17:47:02] Dry-run mode is enabled.
+[17:47:02] Speech recognition disabled.
+[17:47:04] Telemetry warning: Unable to connect to the remote server
+[17:52:04] GSX Remote waiting for SimConnect: Error HRESULT E_FAIL has been returned from a call to a COM component.
+[17:52:05] SimpleOps desktop controller
+[17:52:05] Telemetry: http://127.0.0.1:4789/telemetry
+[17:52:05] Dry-run mode is enabled.
+[17:52:05] Speech recognition disabled.
+[17:52:07] Telemetry warning: Unable to connect to the remote server

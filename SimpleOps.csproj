@@ -8,6 +8,7 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>SimpleOps.GsxRamp</RootNamespace>
     <AssemblyName>SimpleOps</AssemblyName>
+    <ApplicationIcon>src\logo.ico</ApplicationIcon>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>

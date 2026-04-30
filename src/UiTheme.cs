@@ -1,23 +1,21 @@
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace SimpleOps.GsxRamp
 {
     internal static class UiTheme
     {
-        public static readonly Color WindowBackground = Color.FromArgb(246, 243, 236);
-        public static readonly Color CardBackground = Color.FromArgb(255, 252, 246);
-        public static readonly Color CardBorder = Color.FromArgb(223, 216, 204);
-        public static readonly Color Accent = Color.FromArgb(13, 80, 97);
-        public static readonly Color AccentSoft = Color.FromArgb(219, 236, 239);
-        public static readonly Color Action = Color.FromArgb(198, 92, 44);
-        public static readonly Color ActionSoft = Color.FromArgb(250, 232, 222);
-        public static readonly Color TextPrimary = Color.FromArgb(33, 36, 41);
-        public static readonly Color TextMuted = Color.FromArgb(98, 103, 110);
-        public static readonly Color Success = Color.FromArgb(48, 122, 73);
-        public static readonly Color Warning = Color.FromArgb(163, 104, 18);
-        public static readonly Color Danger = Color.FromArgb(163, 49, 49);
+        public static readonly Color WindowBackground = Color.FromArgb(8, 8, 8);
+        public static readonly Color RailBackground = Color.FromArgb(14, 14, 14);
+        public static readonly Color SurfaceBackground = Color.FromArgb(18, 18, 18);
+        public static readonly Color CardBackground = Color.FromArgb(24, 24, 24);
+        public static readonly Color CardBorder = Color.FromArgb(62, 62, 62);
+        public static readonly Color InputBackground = Color.FromArgb(12, 12, 12);
+        public static readonly Color InputBorder = Color.FromArgb(72, 72, 72);
+        public static readonly Color TextPrimary = Color.White;
+        public static readonly Color TextMuted = Color.FromArgb(189, 189, 189);
+        public static readonly Color TextSoft = Color.FromArgb(136, 136, 136);
+        public static readonly Color InverseText = Color.Black;
 
         public static Font TitleFont(float size)
         {
@@ -32,9 +30,10 @@ namespace SimpleOps.GsxRamp
         public static void StylePrimaryButton(Button button)
         {
             button.FlatStyle = FlatStyle.Flat;
-            button.FlatAppearance.BorderSize = 0;
-            button.BackColor = Action;
-            button.ForeColor = Color.White;
+            button.FlatAppearance.BorderSize = 1;
+            button.FlatAppearance.BorderColor = Color.White;
+            button.BackColor = Color.White;
+            button.ForeColor = InverseText;
             button.Font = BodyFont(9.5f, FontStyle.Bold);
             button.Cursor = Cursors.Hand;
         }
@@ -42,38 +41,40 @@ namespace SimpleOps.GsxRamp
         public static void StyleSecondaryButton(Button button)
         {
             button.FlatStyle = FlatStyle.Flat;
-            button.FlatAppearance.BorderColor = CardBorder;
             button.FlatAppearance.BorderSize = 1;
+            button.FlatAppearance.BorderColor = CardBorder;
             button.BackColor = CardBackground;
             button.ForeColor = TextPrimary;
             button.Font = BodyFont(9.5f, FontStyle.Bold);
             button.Cursor = Cursors.Hand;
         }
 
+        public static void StyleNavButton(Button button, bool active)
+        {
+            button.FlatStyle = FlatStyle.Flat;
+            button.FlatAppearance.BorderSize = 0;
+            button.TextAlign = ContentAlignment.MiddleLeft;
+            button.Font = BodyFont(10f, FontStyle.Bold);
+            button.Cursor = Cursors.Hand;
+            button.Padding = new Padding(16, 0, 0, 0);
+
+            if (active)
+            {
+                button.BackColor = Color.White;
+                button.ForeColor = InverseText;
+            }
+            else
+            {
+                button.BackColor = RailBackground;
+                button.ForeColor = TextMuted;
+            }
+        }
+
         public static void StyleInput(Control control)
         {
             control.Font = BodyFont(9.75f);
-            control.BackColor = Color.White;
+            control.BackColor = InputBackground;
             control.ForeColor = TextPrimary;
-        }
-    }
-
-    internal sealed class GradientPanel : Panel
-    {
-        public Color StartColor = Color.FromArgb(20, 72, 87);
-        public Color EndColor = Color.FromArgb(31, 114, 118);
-
-        public GradientPanel()
-        {
-            DoubleBuffered = true;
-        }
-
-        protected override void OnPaintBackground(PaintEventArgs e)
-        {
-            using (var brush = new LinearGradientBrush(ClientRectangle, StartColor, EndColor, LinearGradientMode.ForwardDiagonal))
-            {
-                e.Graphics.FillRectangle(brush, ClientRectangle);
-            }
         }
     }
 
@@ -83,7 +84,7 @@ namespace SimpleOps.GsxRamp
         {
             DoubleBuffered = true;
             BackColor = UiTheme.CardBackground;
-            Padding = new Padding(20);
+            Padding = new Padding(18);
             Margin = new Padding(0, 0, 0, 16);
         }
 

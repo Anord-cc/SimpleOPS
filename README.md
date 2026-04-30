@@ -21,7 +21,7 @@ It polls `http://127.0.0.1:4789/telemetry`, keeps the `onGround` safety gate int
 ## Main files
 
 - [SimpleOps.exe](C:\Users\Alex\SimpleOPS\SimpleOps.exe)
-- [SimpleOps.GsxRamp.csproj](C:\Users\Alex\SimpleOPS\SimpleOps.GsxRamp.csproj)
+- [SimpleOps.csproj](C:\Users\Alex\SimpleOPS\SimpleOps.csproj)
 - [RampControlForm.cs](C:\Users\Alex\SimpleOPS\src\RampControlForm.cs)
 - [RampController.cs](C:\Users\Alex\SimpleOPS\src\RampController.cs)
 - [OpenAiVoiceOutputService.cs](C:\Users\Alex\SimpleOPS\src\OpenAiVoiceOutputService.cs)

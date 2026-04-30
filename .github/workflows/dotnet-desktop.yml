@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 env:
-  PROJECT_FILE: SimpleOps.GsxRamp.csproj
+  PROJECT_FILE: SimpleOps.csproj
   CONFIGURATION: Release
   PLATFORM: x64
   EXE_PATH: bin\Release\SimpleOps.exe

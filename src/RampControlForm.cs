@@ -19,17 +19,19 @@ namespace SimpleOps.GsxRamp
 
         private AppSettings _settings;
 
+        private Button _overviewNavButton;
+        private Button _settingsNavButton;
+        private Label _pageTitleLabel;
+        private Label _pageSubtitleLabel;
+        private Panel _overviewPage;
+        private SettingsPanel _settingsPanel;
         private Label _heroStatusLabel;
-        private Label _heroSummaryLabel;
-        private Label _detailLabel;
-        private Label _configLabel;
-        private Label _systemStatusLabel;
-        private RichTextBox _logBox;
-        private Button _parserTestsButton;
-        private Button _settingsButton;
-        private Button _analyzePhraseButton;
-        private TextBox _diagnosticPhraseTextBox;
-        private RichTextBox _diagnosticResultTextBox;
+        private Label _armedSummaryLabel;
+        private TextBox _telemetryReadout;
+        private TextBox _gsxReadout;
+        private TextBox _voiceReadout;
+        private TextBox _lastCommandReadout;
+        private TextBox _runtimeReadout;
 
         private GsxMenuDriver _gsxMenuDriver;
         private IGsxMenuController _menuController;
@@ -39,6 +41,7 @@ namespace SimpleOps.GsxRamp
         private IVoiceOutputService _voiceOutputService;
         private Timer _autoCloseTimer;
         private Timer _statusRefreshTimer;
+        private string _activePage = "Overview";
 
         public RampControlForm(Options options, AppPaths appPaths, ISettingsStore settingsStore, ICredentialStore credentialStore, PhraseAliasStore phraseAliasStore, AppSettings settings, AppLogger logger)
         {
@@ -51,9 +54,9 @@ namespace SimpleOps.GsxRamp
             _logger = logger;
 
             Text = "SimpleOps";
-            Width = 1320;
+            Width = 1340;
             Height = 860;
-            MinimumSize = new Size(1180, 760);
+            MinimumSize = new Size(1240, 780);
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = UiTheme.WindowBackground;
             Font = UiTheme.BodyFont(9.75f);
@@ -137,285 +140,247 @@ namespace SimpleOps.GsxRamp
             var root = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                BackColor = UiTheme.WindowBackground,
-                ColumnCount = 1,
-                RowCount = 2,
-                Padding = new Padding(20, 18, 20, 20)
+                ColumnCount = 2,
+                RowCount = 1,
+                BackColor = UiTheme.WindowBackground
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 168));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220));
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
-            root.Controls.Add(BuildHeroPanel(), 0, 0);
-            root.Controls.Add(BuildBodyPanel(), 0, 1);
-
+            root.Controls.Add(BuildNavigationRail(), 0, 0);
+            root.Controls.Add(BuildMainArea(), 1, 0);
             Controls.Add(root);
         }
 
-        private Control BuildHeroPanel()
+        private Control BuildNavigationRail()
         {
-            var hero = new GradientPanel
+            var rail = new Panel
             {
                 Dock = DockStyle.Fill,
-                Margin = new Padding(0, 0, 0, 18),
-                Padding = new Padding(26, 22, 26, 22)
+                BackColor = UiTheme.RailBackground,
+                Padding = new Padding(18, 24, 18, 24)
             };
 
             var title = new Label
             {
                 AutoSize = true,
                 Text = "SimpleOps",
-                Font = UiTheme.TitleFont(28f),
-                ForeColor = Color.White,
-                BackColor = Color.Transparent
+                Font = UiTheme.TitleFont(24f),
+                ForeColor = UiTheme.TextPrimary
             };
 
             var subtitle = new Label
             {
                 AutoSize = true,
-                MaximumSize = new Size(650, 0),
-                Text = "Ground operations command deck for MSFS with GSX remote control, live telemetry gating, and voice-driven service coordination.",
-                Font = UiTheme.BodyFont(10.5f),
-                ForeColor = Color.FromArgb(227, 241, 244),
-                BackColor = Color.Transparent
+                MaximumSize = new Size(170, 0),
+                Top = 56,
+                Text = "Voice command deck",
+                Font = UiTheme.BodyFont(9.75f),
+                ForeColor = UiTheme.TextMuted
             };
 
-            _heroStatusLabel = new Label
+            _overviewNavButton = new Button
             {
-                AutoSize = false,
-                Width = 360,
-                Height = 34,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Text = "Starting...",
-                Font = UiTheme.BodyFont(10f, FontStyle.Bold),
-                ForeColor = UiTheme.TextPrimary,
-                BackColor = Color.FromArgb(246, 240, 231),
-                Padding = new Padding(12, 0, 0, 0)
+                Width = 182,
+                Height = 44,
+                Top = 122,
+                Left = 0,
+                Text = "Overview"
             };
+            _overviewNavButton.Click += delegate { ShowPage("Overview"); };
 
-            _heroSummaryLabel = new Label
+            _settingsNavButton = new Button
             {
-                AutoSize = true,
-                MaximumSize = new Size(700, 0),
-                Text = "Booting command deck.",
-                Font = UiTheme.BodyFont(10f),
-                ForeColor = Color.FromArgb(240, 246, 247),
-                BackColor = Color.Transparent
-            };
-
-            _settingsButton = new Button
-            {
-                Width = 126,
-                Height = 38,
+                Width = 182,
+                Height = 44,
+                Top = 174,
+                Left = 0,
                 Text = "Settings"
             };
-            UiTheme.StylePrimaryButton(_settingsButton);
-            _settingsButton.Click += SettingsButton_Click;
+            _settingsNavButton.Click += delegate { ShowPage("Settings"); };
 
-            _parserTestsButton = new Button
+            var statusHint = new Label
             {
-                Width = 150,
-                Height = 38,
-                Text = "Run tests"
+                AutoSize = true,
+                MaximumSize = new Size(170, 0),
+                Top = 260,
+                Text = "Advanced lives inside Settings.",
+                Font = UiTheme.BodyFont(9f),
+                ForeColor = UiTheme.TextSoft
             };
-            UiTheme.StyleSecondaryButton(_parserTestsButton);
-            _parserTestsButton.ForeColor = Color.White;
-            _parserTestsButton.BackColor = Color.FromArgb(37, 110, 118);
-            _parserTestsButton.FlatAppearance.BorderColor = Color.FromArgb(105, 171, 176);
-            _parserTestsButton.Click += ParserTestsButton_Click;
 
-            var left = new TableLayoutPanel
+            rail.Controls.Add(title);
+            rail.Controls.Add(subtitle);
+            rail.Controls.Add(_overviewNavButton);
+            rail.Controls.Add(_settingsNavButton);
+            rail.Controls.Add(statusHint);
+            return rail;
+        }
+
+        private Control BuildMainArea()
+        {
+            var shell = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2,
+                BackColor = UiTheme.WindowBackground,
+                Padding = new Padding(24, 22, 24, 22)
+            };
+            shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 92));
+            shell.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            shell.Controls.Add(BuildPageHeader(), 0, 0);
+            shell.Controls.Add(BuildContentHost(), 0, 1);
+            return shell;
+        }
+
+        private Control BuildPageHeader()
+        {
+            var header = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = UiTheme.WindowBackground
+            };
+
+            _pageTitleLabel = new Label
+            {
+                AutoSize = true,
+                Text = "Overview",
+                Font = UiTheme.TitleFont(26f),
+                ForeColor = UiTheme.TextPrimary
+            };
+
+            _pageSubtitleLabel = new Label
+            {
+                AutoSize = true,
+                Top = 42,
+                MaximumSize = new Size(760, 0),
+                Text = "Live aircraft, GSX, telemetry, and voice status.",
+                Font = UiTheme.BodyFont(9.75f),
+                ForeColor = UiTheme.TextMuted
+            };
+
+            header.Controls.Add(_pageTitleLabel);
+            header.Controls.Add(_pageSubtitleLabel);
+            return header;
+        }
+
+        private Control BuildContentHost()
+        {
+            var host = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = UiTheme.WindowBackground
+            };
+
+            _overviewPage = BuildOverviewPage();
+            _settingsPanel = new SettingsPanel { Visible = false };
+            _settingsPanel.SaveRequested += SettingsPanel_SaveRequested;
+            _settingsPanel.AnalyzePhraseRequested += SettingsPanel_AnalyzePhraseRequested;
+            _settingsPanel.RunParserTestsRequested += SettingsPanel_RunParserTestsRequested;
+
+            host.Controls.Add(_overviewPage);
+            host.Controls.Add(_settingsPanel);
+            return host;
+        }
+
+        private Panel BuildOverviewPage()
+        {
+            var page = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = UiTheme.WindowBackground
+            };
+
+            var stack = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
                 RowCount = 4,
-                BackColor = Color.Transparent
+                BackColor = UiTheme.WindowBackground
             };
-            left.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            left.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            left.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
-            left.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            left.Controls.Add(title, 0, 0);
-            left.Controls.Add(subtitle, 0, 1);
-            left.Controls.Add(new Panel { Height = 12, Width = 1, BackColor = Color.Transparent }, 0, 2);
-            left.Controls.Add(_heroSummaryLabel, 0, 3);
+            stack.RowStyles.Add(new RowStyle(SizeType.Absolute, 138));
+            stack.RowStyles.Add(new RowStyle(SizeType.Absolute, 138));
+            stack.RowStyles.Add(new RowStyle(SizeType.Absolute, 138));
+            stack.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            var rightButtons = new FlowLayoutPanel
+            stack.Controls.Add(BuildStatusCard(), 0, 0);
+            stack.Controls.Add(BuildConnectionCard(), 0, 1);
+            stack.Controls.Add(BuildVoiceCard(), 0, 2);
+            stack.Controls.Add(BuildRuntimeCard(), 0, 3);
+
+            page.Controls.Add(stack);
+            return page;
+        }
+
+        private Control BuildStatusCard()
+        {
+            var card = new CardPanel { Dock = DockStyle.Fill };
+            var layout = CreateCardLayout("Command Status", "Short live readout. No clipped hero copy.");
+
+            _heroStatusLabel = new Label
             {
                 AutoSize = true,
-                FlowDirection = FlowDirection.RightToLeft,
-                Dock = DockStyle.Top,
-                BackColor = Color.Transparent,
-                Margin = new Padding(0)
+                MaximumSize = new Size(820, 0),
+                Text = "Starting...",
+                Font = UiTheme.TitleFont(18f),
+                ForeColor = UiTheme.TextPrimary
             };
-            rightButtons.Controls.Add(_settingsButton);
-            rightButtons.Controls.Add(_parserTestsButton);
 
-            var right = new TableLayoutPanel
+            _armedSummaryLabel = new Label
             {
-                Dock = DockStyle.Fill,
-                ColumnCount = 1,
-                RowCount = 3,
-                BackColor = Color.Transparent
+                AutoSize = true,
+                MaximumSize = new Size(820, 0),
+                Margin = new Padding(0, 8, 0, 0),
+                Text = "Waiting for telemetry.",
+                Font = UiTheme.BodyFont(10f),
+                ForeColor = UiTheme.TextMuted
             };
-            right.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            right.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            right.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            right.Controls.Add(rightButtons, 0, 0);
-            right.Controls.Add(new Panel { BackColor = Color.Transparent }, 0, 1);
-            right.Controls.Add(_heroStatusLabel, 0, 2);
 
-            var layout = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 1,
-                BackColor = Color.Transparent
-            };
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70f));
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
-            layout.Controls.Add(left, 0, 0);
-            layout.Controls.Add(right, 1, 0);
-
-            hero.Controls.Add(layout);
-            return hero;
-        }
-
-        private Control BuildBodyPanel()
-        {
-            var body = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 1,
-                BackColor = UiTheme.WindowBackground
-            };
-            body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 400));
-            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-
-            var leftColumn = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 1,
-                RowCount = 3,
-                Margin = new Padding(0, 0, 18, 0),
-                BackColor = UiTheme.WindowBackground
-            };
-            leftColumn.RowStyles.Add(new RowStyle(SizeType.Absolute, 154));
-            leftColumn.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
-            leftColumn.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-            _detailLabel = CreateBodyLabel();
-            _configLabel = CreateBodyLabel();
-            _systemStatusLabel = CreateBodyLabel();
-
-            leftColumn.Controls.Add(BuildInfoCard("Flight Link", "Telemetry path, GSX location, and runtime environment.", _detailLabel, _configLabel), 0, 0);
-            leftColumn.Controls.Add(BuildInfoCard("Runtime Status", "Live system health across telemetry, speech, voice, and GSX.", _systemStatusLabel), 0, 1);
-            leftColumn.Controls.Add(BuildDiagnosticsCard(), 0, 2);
-
-            body.Controls.Add(leftColumn, 0, 0);
-            body.Controls.Add(BuildConsoleCard(), 1, 0);
-            return body;
-        }
-
-        private Control BuildInfoCard(string title, string subtitle, params Control[] content)
-        {
-            var card = new CardPanel { Dock = DockStyle.Fill };
-            var layout = CreateCardLayout(title, subtitle);
-            int row = 2;
-            for (int i = 0; i < content.Length; i++)
-            {
-                layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-                layout.Controls.Add(content[i], 0, row++);
-            }
-
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.Controls.Add(_heroStatusLabel, 0, 2);
+            layout.Controls.Add(_armedSummaryLabel, 0, 3);
             card.Controls.Add(layout);
             return card;
         }
 
-        private Control BuildDiagnosticsCard()
+        private Control BuildConnectionCard()
         {
             var card = new CardPanel { Dock = DockStyle.Fill };
-            var layout = CreateCardLayout("Phrase Diagnostics", "Test pilot-to-ramp phrases safely before sending any live service command.");
+            var layout = CreateCardLayout("Links", "Telemetry and GSX paths stay readable in fixed-width fields.");
 
-            _diagnosticPhraseTextBox = new TextBox
-            {
-                Dock = DockStyle.Top,
-                Height = 32,
-                BorderStyle = BorderStyle.FixedSingle
-            };
-            UiTheme.StyleInput(_diagnosticPhraseTextBox);
+            _telemetryReadout = CreateReadoutTextBox();
+            _gsxReadout = CreateReadoutTextBox();
 
-            _analyzePhraseButton = new Button
-            {
-                Width = 118,
-                Height = 34,
-                Text = "Analyze"
-            };
-            UiTheme.StylePrimaryButton(_analyzePhraseButton);
-            _analyzePhraseButton.Click += AnalyzePhraseButton_Click;
-
-            _diagnosticResultTextBox = new RichTextBox
-            {
-                Dock = DockStyle.Fill,
-                BorderStyle = BorderStyle.None,
-                ReadOnly = true,
-                BackColor = Color.FromArgb(251, 247, 240),
-                ForeColor = UiTheme.TextPrimary,
-                Font = UiTheme.BodyFont(9.5f)
-            };
-
-            var buttonRow = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Top,
-                Height = 42,
-                BackColor = Color.Transparent
-            };
-            buttonRow.Controls.Add(_analyzePhraseButton);
-
-            var resultHost = new Panel
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(251, 247, 240),
-                Padding = new Padding(12)
-            };
-            resultHost.Controls.Add(_diagnosticResultTextBox);
-
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            layout.Controls.Add(_diagnosticPhraseTextBox, 0, 2);
-            layout.Controls.Add(buttonRow, 0, 3);
-            layout.Controls.Add(resultHost, 0, 4);
-
+            AddReadout(layout, 2, "Telemetry", _telemetryReadout);
+            AddReadout(layout, 3, "GSX panel", _gsxReadout);
             card.Controls.Add(layout);
             return card;
         }
 
-        private Control BuildConsoleCard()
+        private Control BuildVoiceCard()
+        {
+            var card = new CardPanel { Dock = DockStyle.Fill };
+            var layout = CreateCardLayout("Voice + Input", "Current speech and voice pipeline state.");
+
+            _voiceReadout = CreateMultilineReadout();
+            AddReadout(layout, 2, "Voice state", _voiceReadout);
+            card.Controls.Add(layout);
+            return card;
+        }
+
+        private Control BuildRuntimeCard()
         {
             var card = new CardPanel { Dock = DockStyle.Fill, Margin = new Padding(0) };
-            var layout = CreateCardLayout("Operations Console", "Live command log, service acknowledgements, and startup diagnostics.");
+            var layout = CreateCardLayout("Runtime", "Last command and compact service state.");
 
-            _logBox = new RichTextBox
-            {
-                Dock = DockStyle.Fill,
-                BorderStyle = BorderStyle.None,
-                ReadOnly = true,
-                BackColor = Color.FromArgb(29, 33, 40),
-                ForeColor = Color.FromArgb(233, 240, 243),
-                Font = new Font("Consolas", 9.5f, FontStyle.Regular, GraphicsUnit.Point)
-            };
+            _lastCommandReadout = CreateReadoutTextBox();
+            _runtimeReadout = CreateMultilineReadout();
 
-            var chrome = new Panel
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(29, 33, 40),
-                Padding = new Padding(16)
-            };
-            chrome.Controls.Add(_logBox);
-
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            layout.Controls.Add(chrome, 0, 2);
+            AddReadout(layout, 2, "Last command", _lastCommandReadout);
+            AddReadout(layout, 3, "Service state", _runtimeReadout);
             card.Controls.Add(layout);
             return card;
         }
@@ -425,10 +390,12 @@ namespace SimpleOps.GsxRamp
             var layout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 1,
+                ColumnCount = 2,
                 RowCount = 2,
                 BackColor = UiTheme.CardBackground
             };
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
@@ -436,35 +403,75 @@ namespace SimpleOps.GsxRamp
             {
                 AutoSize = true,
                 Text = title,
-                Font = UiTheme.TitleFont(14f),
+                Font = UiTheme.TitleFont(15f),
                 ForeColor = UiTheme.TextPrimary
             };
 
             var subtitleLabel = new Label
             {
                 AutoSize = true,
-                MaximumSize = new Size(760, 0),
+                MaximumSize = new Size(820, 0),
                 Margin = new Padding(0, 6, 0, 16),
                 Text = subtitle,
-                Font = UiTheme.BodyFont(9.75f),
+                Font = UiTheme.BodyFont(9.5f),
                 ForeColor = UiTheme.TextMuted
             };
 
+            layout.SetColumnSpan(titleLabel, 2);
+            layout.SetColumnSpan(subtitleLabel, 2);
             layout.Controls.Add(titleLabel, 0, 0);
             layout.Controls.Add(subtitleLabel, 0, 1);
             return layout;
         }
 
-        private static Label CreateBodyLabel()
+        private void AddReadout(TableLayoutPanel layout, int row, string label, Control control)
         {
-            return new Label
+            if (layout.RowCount <= row)
+            {
+                layout.RowCount = row + 1;
+            }
+
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            var labelControl = new Label
             {
                 AutoSize = true,
-                MaximumSize = new Size(720, 0),
-                Margin = new Padding(0, 0, 0, 12),
-                Font = UiTheme.BodyFont(9.75f),
+                Margin = new Padding(0, 8, 0, 0),
+                Text = label,
+                Font = UiTheme.BodyFont(9.5f, FontStyle.Bold),
                 ForeColor = UiTheme.TextPrimary
             };
+
+            control.Margin = new Padding(0, 4, 0, 8);
+            layout.Controls.Add(labelControl, 0, row);
+            layout.Controls.Add(control, 1, row);
+        }
+
+        private static TextBox CreateReadoutTextBox()
+        {
+            var textBox = new TextBox
+            {
+                Width = 860,
+                ReadOnly = true,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            UiTheme.StyleInput(textBox);
+            return textBox;
+        }
+
+        private static TextBox CreateMultilineReadout()
+        {
+            var textBox = new TextBox
+            {
+                Width = 860,
+                Height = 62,
+                Multiline = true,
+                ReadOnly = true,
+                BorderStyle = BorderStyle.FixedSingle,
+                ScrollBars = ScrollBars.Vertical
+            };
+            UiTheme.StyleInput(textBox);
+            return textBox;
         }
 
         private void ReloadRuntime()
@@ -475,11 +482,11 @@ namespace SimpleOps.GsxRamp
             _parser = new RampPhraseParser(_phraseAliasStore.Load());
 
             _speechInputService = _options.NoSpeech
-                ? (ISpeechInputService)new DisabledSpeechInputService("Speech input disabled by command-line flag.")
+                ? (ISpeechInputService)new DisabledSpeechInputService("Speech input disabled.")
                 : CreateSpeechInputService();
 
             _voiceOutputService = _options.NoVoiceFeedback
-                ? (IVoiceOutputService)new SilentVoiceOutputService("Voice output disabled by command-line flag.")
+                ? (IVoiceOutputService)new SilentVoiceOutputService("Voice output disabled.")
                 : CreateVoiceOutputService();
 
             string gsxError;
@@ -488,19 +495,23 @@ namespace SimpleOps.GsxRamp
             {
                 _gsxMenuDriver = new GsxMenuDriver(gsxPaths, Handle, WmUserSimConnect, _logger.Log);
                 _menuController = _gsxMenuDriver;
-                _detailLabel.Text = "GSX panel: " + gsxPaths.GsxPanelPath;
+                _gsxReadout.Text = gsxPaths.GsxPanelPath;
             }
             else
             {
                 _gsxMenuDriver = null;
                 _menuController = new NullGsxMenuController(gsxError);
-                _detailLabel.Text = "GSX panel unavailable.";
+                _gsxReadout.Text = "Unavailable";
                 _logger.Log(gsxError);
             }
 
-            _configLabel.Text =
-                "Telemetry: " + _settings.TelemetryUrl + Environment.NewLine +
-                "Logs: " + _appPaths.LogDirectory;
+            _telemetryReadout.Text = _settings.TelemetryUrl;
+
+            _settingsPanel.Bind(
+                _settings,
+                _credentialStore.GetSecret(OpenAiCredentialKey),
+                AudioDeviceCatalog.GetInputDevices(),
+                AudioDeviceCatalog.GetOutputDevices());
 
             _rampController = new RampController(
                 _options,
@@ -524,8 +535,8 @@ namespace SimpleOps.GsxRamp
             }
             catch (Exception ex)
             {
-                _logger.Log("Speech input initialization warning: " + ex.Message);
-                return new DisabledSpeechInputService("Speech input unavailable: " + ex.Message);
+                _logger.Log("Speech input warning: " + ex.Message);
+                return new DisabledSpeechInputService("Speech input unavailable.");
             }
         }
 
@@ -535,12 +546,12 @@ namespace SimpleOps.GsxRamp
             {
                 return _settings.OpenAiVoiceEnabled
                     ? (IVoiceOutputService)new OpenAiVoiceOutputService(_settings, _credentialStore, _appPaths, _logger.Log)
-                    : new SilentVoiceOutputService("OpenAI voice disabled in settings.");
+                    : new SilentVoiceOutputService("OpenAI voice disabled.");
             }
             catch (Exception ex)
             {
-                _logger.Log("Voice output initialization warning: " + ex.Message);
-                return new SilentVoiceOutputService("Voice output unavailable: " + ex.Message);
+                _logger.Log("Voice output warning: " + ex.Message);
+                return new SilentVoiceOutputService("Voice output unavailable.");
             }
         }
 
@@ -598,74 +609,82 @@ namespace SimpleOps.GsxRamp
                 return;
             }
 
-            var builder = new StringBuilder();
-            builder.AppendLine("Telemetry: " + _rampController.TelemetryStatusText);
-            builder.AppendLine("Speech input: " + _rampController.SpeechInputStatusText);
-            builder.AppendLine("OpenAI voice: " + _rampController.VoiceOutputStatusText);
-            builder.AppendLine("GSX Remote: " + _rampController.GsxStatusText);
-            builder.Append("Last command: " + _rampController.LastCommandText);
-            _systemStatusLabel.Text = builder.ToString();
-
-            _heroSummaryLabel.Text = _rampController.IsArmed
-                ? "Ramp channel is armed. Ground services can be dispatched when a strong phrase match is detected."
-                : "Ramp channel is standing by. The command deck stays passive until the aircraft is confirmed on the ground.";
+            _armedSummaryLabel.Text = _rampController.IsArmed ? "Ramp active. Aircraft confirmed on ground." : "Ramp standby. Waiting for on-ground telemetry.";
+            _voiceReadout.Text =
+                "Speech: " + _rampController.SpeechInputStatusText + Environment.NewLine +
+                "Voice: " + _rampController.VoiceOutputStatusText;
+            _lastCommandReadout.Text = _rampController.LastCommandText;
+            _runtimeReadout.Text =
+                "Telemetry: " + _rampController.TelemetryStatusText + Environment.NewLine +
+                "GSX: " + _rampController.GsxStatusText;
         }
 
-        private void SettingsButton_Click(object sender, EventArgs e)
+        private void ShowPage(string pageName)
         {
-            using (var dialog = new SettingsForm(
-                _settings,
-                _credentialStore.GetSecret(OpenAiCredentialKey),
-                AudioDeviceCatalog.GetInputDevices(),
-                AudioDeviceCatalog.GetOutputDevices()))
+            _activePage = pageName;
+            bool showOverview = string.Equals(pageName, "Overview", StringComparison.OrdinalIgnoreCase);
+
+            _overviewPage.Visible = showOverview;
+            _settingsPanel.Visible = !showOverview;
+
+            _pageTitleLabel.Text = showOverview ? "Overview" : "Settings";
+            _pageSubtitleLabel.Text = showOverview
+                ? "Live aircraft, GSX, telemetry, and voice status."
+                : "Inline controls plus Advanced diagnostics and console.";
+
+            UiTheme.StyleNavButton(_overviewNavButton, showOverview);
+            UiTheme.StyleNavButton(_settingsNavButton, !showOverview);
+        }
+
+        private void SettingsPanel_SaveRequested(object sender, EventArgs e)
+        {
+            if (_settingsPanel.PendingSettings == null)
             {
-                if (dialog.ShowDialog(this) != DialogResult.OK)
-                {
-                    return;
-                }
-
-                _settingsStore.Save(dialog.UpdatedSettings);
-                if (string.IsNullOrWhiteSpace(dialog.UpdatedApiKey))
-                {
-                    _credentialStore.DeleteSecret(OpenAiCredentialKey);
-                }
-                else
-                {
-                    _credentialStore.SaveSecret(OpenAiCredentialKey, dialog.UpdatedApiKey);
-                }
-
-                _logger.Log("Settings saved.");
-                ReloadRuntime();
+                return;
             }
+
+            _settingsStore.Save(_settingsPanel.PendingSettings);
+            if (string.IsNullOrWhiteSpace(_settingsPanel.PendingApiKey))
+            {
+                _credentialStore.DeleteSecret(OpenAiCredentialKey);
+            }
+            else
+            {
+                _credentialStore.SaveSecret(OpenAiCredentialKey, _settingsPanel.PendingApiKey);
+            }
+
+            _logger.Log("Settings saved.");
+            ReloadRuntime();
+            ShowPage("Settings");
         }
 
-        private void ParserTestsButton_Click(object sender, EventArgs e)
-        {
-            int code = ParserTestHarness.Run(_logger.Log);
-            MessageBox.Show(
-                code == 0 ? "Parser tests passed." : "Parser tests failed. Review the log output for details.",
-                "SimpleOps",
-                MessageBoxButtons.OK,
-                code == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
-        }
-
-        private void AnalyzePhraseButton_Click(object sender, EventArgs e)
+        private void SettingsPanel_AnalyzePhraseRequested(object sender, EventArgs e)
         {
             if (_parser == null)
             {
                 return;
             }
 
-            var phrase = _diagnosticPhraseTextBox.Text ?? string.Empty;
+            var phrase = _settingsPanel.DiagnosticPhrase;
             var command = _parser.Parse(phrase);
             var safeToExecute = command.IsSafeToExecute && (!command.IsActionableGsx || command.Quality == MatchQuality.Strong) && (_rampController != null && _rampController.IsArmed);
-            _diagnosticResultTextBox.Text =
+            _settingsPanel.SetDiagnosticResult(
                 "Raw: " + command.RawPhrase + Environment.NewLine +
                 "Normalized: " + command.NormalizedPhrase + Environment.NewLine +
                 "Intent: " + command.Type + Environment.NewLine +
                 "Quality: " + command.Quality + Environment.NewLine +
                 "Reason: " + command.Reason + Environment.NewLine +
-                "GSX action allowed now: " + safeToExecute;
+                "GSX action allowed: " + safeToExecute);
+        }
+
+        private void SettingsPanel_RunParserTestsRequested(object sender, EventArgs e)
+        {
+            int code = ParserTestHarness.Run(_logger.Log);
+            MessageBox.Show(
+                code == 0 ? "Parser tests passed." : "Parser tests failed. Review the console in Advanced.",
+                "SimpleOps",
+                MessageBoxButtons.OK,
+                code == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
         }
 
         private void SetStatus(string message)
@@ -687,9 +706,7 @@ namespace SimpleOps.GsxRamp
                 return;
             }
 
-            _logBox.AppendText(line + Environment.NewLine);
-            _logBox.SelectionStart = _logBox.TextLength;
-            _logBox.ScrollToCaret();
+            _settingsPanel.AppendLog(line);
         }
     }
 }
