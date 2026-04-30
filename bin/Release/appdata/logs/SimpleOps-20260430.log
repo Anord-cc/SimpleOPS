@@ -1,0 +1,6 @@
+[06:54:15] GSX Remote waiting for SimConnect: Error HRESULT E_FAIL has been returned from a call to a COM component.
+[06:54:15] SimpleOps desktop controller
+[06:54:15] Telemetry: http://127.0.0.1:4789/telemetry
+[06:54:15] Dry-run mode is enabled.
+[06:54:15] Speech recognition disabled.
+[06:54:17] Telemetry warning: Unable to connect to the remote server

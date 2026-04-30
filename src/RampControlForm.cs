@@ -19,16 +19,17 @@ namespace SimpleOps.GsxRamp
 
         private AppSettings _settings;
 
-        private Label _statusLabel;
+        private Label _heroStatusLabel;
+        private Label _heroSummaryLabel;
         private Label _detailLabel;
         private Label _configLabel;
         private Label _systemStatusLabel;
-        private TextBox _logBox;
+        private RichTextBox _logBox;
         private Button _parserTestsButton;
         private Button _settingsButton;
         private Button _analyzePhraseButton;
         private TextBox _diagnosticPhraseTextBox;
-        private TextBox _diagnosticResultTextBox;
+        private RichTextBox _diagnosticResultTextBox;
 
         private GsxMenuDriver _gsxMenuDriver;
         private IGsxMenuController _menuController;
@@ -50,8 +51,12 @@ namespace SimpleOps.GsxRamp
             _logger = logger;
 
             Text = "SimpleOps";
-            Width = 980;
-            Height = 690;
+            Width = 1320;
+            Height = 860;
+            MinimumSize = new Size(1180, 760);
+            StartPosition = FormStartPosition.CenterScreen;
+            BackColor = UiTheme.WindowBackground;
+            Font = UiTheme.BodyFont(9.75f);
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
             ShowIcon = true;
@@ -129,124 +134,337 @@ namespace SimpleOps.GsxRamp
 
         private void BuildUi()
         {
-            _statusLabel = new Label
+            var root = new TableLayoutPanel
             {
-                AutoSize = false,
-                Left = 20,
-                Top = 18,
-                Width = 920,
-                Height = 24,
-                Text = "Starting..."
+                Dock = DockStyle.Fill,
+                BackColor = UiTheme.WindowBackground,
+                ColumnCount = 1,
+                RowCount = 2,
+                Padding = new Padding(20, 18, 20, 20)
+            };
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 168));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            root.Controls.Add(BuildHeroPanel(), 0, 0);
+            root.Controls.Add(BuildBodyPanel(), 0, 1);
+
+            Controls.Add(root);
+        }
+
+        private Control BuildHeroPanel()
+        {
+            var hero = new GradientPanel
+            {
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, 0, 0, 18),
+                Padding = new Padding(26, 22, 26, 22)
             };
 
-            _detailLabel = new Label
+            var title = new Label
             {
-                AutoSize = false,
-                Left = 20,
-                Top = 50,
-                Width = 920,
-                Height = 44,
-                Text = "Waiting for telemetry..."
+                AutoSize = true,
+                Text = "SimpleOps",
+                Font = UiTheme.TitleFont(28f),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent
             };
 
-            _configLabel = new Label
+            var subtitle = new Label
             {
-                AutoSize = false,
-                Left = 20,
-                Top = 98,
-                Width = 920,
-                Height = 46
+                AutoSize = true,
+                MaximumSize = new Size(650, 0),
+                Text = "Ground operations command deck for MSFS with GSX remote control, live telemetry gating, and voice-driven service coordination.",
+                Font = UiTheme.BodyFont(10.5f),
+                ForeColor = Color.FromArgb(227, 241, 244),
+                BackColor = Color.Transparent
             };
 
-            _systemStatusLabel = new Label
+            _heroStatusLabel = new Label
             {
                 AutoSize = false,
-                Left = 20,
-                Top = 150,
-                Width = 920,
-                Height = 90
+                Width = 360,
+                Height = 34,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Text = "Starting...",
+                Font = UiTheme.BodyFont(10f, FontStyle.Bold),
+                ForeColor = UiTheme.TextPrimary,
+                BackColor = Color.FromArgb(246, 240, 231),
+                Padding = new Padding(12, 0, 0, 0)
+            };
+
+            _heroSummaryLabel = new Label
+            {
+                AutoSize = true,
+                MaximumSize = new Size(700, 0),
+                Text = "Booting command deck.",
+                Font = UiTheme.BodyFont(10f),
+                ForeColor = Color.FromArgb(240, 246, 247),
+                BackColor = Color.Transparent
             };
 
             _settingsButton = new Button
             {
-                Left = 20,
-                Top = 248,
-                Width = 140,
-                Height = 30,
+                Width = 126,
+                Height = 38,
                 Text = "Settings"
             };
+            UiTheme.StylePrimaryButton(_settingsButton);
             _settingsButton.Click += SettingsButton_Click;
 
             _parserTestsButton = new Button
             {
-                Left = 170,
-                Top = 248,
-                Width = 160,
-                Height = 30,
-                Text = "Run parser tests"
+                Width = 150,
+                Height = 38,
+                Text = "Run tests"
             };
+            UiTheme.StyleSecondaryButton(_parserTestsButton);
+            _parserTestsButton.ForeColor = Color.White;
+            _parserTestsButton.BackColor = Color.FromArgb(37, 110, 118);
+            _parserTestsButton.FlatAppearance.BorderColor = Color.FromArgb(105, 171, 176);
             _parserTestsButton.Click += ParserTestsButton_Click;
 
-            var diagnosticLabel = new Label
+            var left = new TableLayoutPanel
             {
-                Left = 20,
-                Top = 292,
-                Width = 920,
-                Height = 20,
-                Text = "Phrase diagnostics"
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 4,
+                BackColor = Color.Transparent
             };
+            left.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            left.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            left.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
+            left.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            left.Controls.Add(title, 0, 0);
+            left.Controls.Add(subtitle, 0, 1);
+            left.Controls.Add(new Panel { Height = 12, Width = 1, BackColor = Color.Transparent }, 0, 2);
+            left.Controls.Add(_heroSummaryLabel, 0, 3);
+
+            var rightButtons = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                FlowDirection = FlowDirection.RightToLeft,
+                Dock = DockStyle.Top,
+                BackColor = Color.Transparent,
+                Margin = new Padding(0)
+            };
+            rightButtons.Controls.Add(_settingsButton);
+            rightButtons.Controls.Add(_parserTestsButton);
+
+            var right = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                BackColor = Color.Transparent
+            };
+            right.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            right.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            right.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            right.Controls.Add(rightButtons, 0, 0);
+            right.Controls.Add(new Panel { BackColor = Color.Transparent }, 0, 1);
+            right.Controls.Add(_heroStatusLabel, 0, 2);
+
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                BackColor = Color.Transparent
+            };
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70f));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
+            layout.Controls.Add(left, 0, 0);
+            layout.Controls.Add(right, 1, 0);
+
+            hero.Controls.Add(layout);
+            return hero;
+        }
+
+        private Control BuildBodyPanel()
+        {
+            var body = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                BackColor = UiTheme.WindowBackground
+            };
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 400));
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+
+            var leftColumn = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                Margin = new Padding(0, 0, 18, 0),
+                BackColor = UiTheme.WindowBackground
+            };
+            leftColumn.RowStyles.Add(new RowStyle(SizeType.Absolute, 154));
+            leftColumn.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
+            leftColumn.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            _detailLabel = CreateBodyLabel();
+            _configLabel = CreateBodyLabel();
+            _systemStatusLabel = CreateBodyLabel();
+
+            leftColumn.Controls.Add(BuildInfoCard("Flight Link", "Telemetry path, GSX location, and runtime environment.", _detailLabel, _configLabel), 0, 0);
+            leftColumn.Controls.Add(BuildInfoCard("Runtime Status", "Live system health across telemetry, speech, voice, and GSX.", _systemStatusLabel), 0, 1);
+            leftColumn.Controls.Add(BuildDiagnosticsCard(), 0, 2);
+
+            body.Controls.Add(leftColumn, 0, 0);
+            body.Controls.Add(BuildConsoleCard(), 1, 0);
+            return body;
+        }
+
+        private Control BuildInfoCard(string title, string subtitle, params Control[] content)
+        {
+            var card = new CardPanel { Dock = DockStyle.Fill };
+            var layout = CreateCardLayout(title, subtitle);
+            int row = 2;
+            for (int i = 0; i < content.Length; i++)
+            {
+                layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                layout.Controls.Add(content[i], 0, row++);
+            }
+
+            card.Controls.Add(layout);
+            return card;
+        }
+
+        private Control BuildDiagnosticsCard()
+        {
+            var card = new CardPanel { Dock = DockStyle.Fill };
+            var layout = CreateCardLayout("Phrase Diagnostics", "Test pilot-to-ramp phrases safely before sending any live service command.");
 
             _diagnosticPhraseTextBox = new TextBox
             {
-                Left = 20,
-                Top = 318,
-                Width = 650,
-                Height = 24
+                Dock = DockStyle.Top,
+                Height = 32,
+                BorderStyle = BorderStyle.FixedSingle
             };
+            UiTheme.StyleInput(_diagnosticPhraseTextBox);
 
             _analyzePhraseButton = new Button
             {
-                Left = 680,
-                Top = 316,
-                Width = 120,
-                Height = 28,
+                Width = 118,
+                Height = 34,
                 Text = "Analyze"
             };
+            UiTheme.StylePrimaryButton(_analyzePhraseButton);
             _analyzePhraseButton.Click += AnalyzePhraseButton_Click;
 
-            _diagnosticResultTextBox = new TextBox
+            _diagnosticResultTextBox = new RichTextBox
             {
-                Left = 20,
-                Top = 350,
-                Width = 920,
-                Height = 90,
-                Multiline = true,
+                Dock = DockStyle.Fill,
+                BorderStyle = BorderStyle.None,
                 ReadOnly = true,
-                ScrollBars = ScrollBars.Vertical
+                BackColor = Color.FromArgb(251, 247, 240),
+                ForeColor = UiTheme.TextPrimary,
+                Font = UiTheme.BodyFont(9.5f)
             };
 
-            _logBox = new TextBox
+            var buttonRow = new FlowLayoutPanel
             {
-                Left = 20,
-                Top = 450,
-                Width = 920,
-                Height = 180,
-                Multiline = true,
-                ScrollBars = ScrollBars.Vertical,
-                ReadOnly = true
+                Dock = DockStyle.Top,
+                Height = 42,
+                BackColor = Color.Transparent
+            };
+            buttonRow.Controls.Add(_analyzePhraseButton);
+
+            var resultHost = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(251, 247, 240),
+                Padding = new Padding(12)
+            };
+            resultHost.Controls.Add(_diagnosticResultTextBox);
+
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            layout.Controls.Add(_diagnosticPhraseTextBox, 0, 2);
+            layout.Controls.Add(buttonRow, 0, 3);
+            layout.Controls.Add(resultHost, 0, 4);
+
+            card.Controls.Add(layout);
+            return card;
+        }
+
+        private Control BuildConsoleCard()
+        {
+            var card = new CardPanel { Dock = DockStyle.Fill, Margin = new Padding(0) };
+            var layout = CreateCardLayout("Operations Console", "Live command log, service acknowledgements, and startup diagnostics.");
+
+            _logBox = new RichTextBox
+            {
+                Dock = DockStyle.Fill,
+                BorderStyle = BorderStyle.None,
+                ReadOnly = true,
+                BackColor = Color.FromArgb(29, 33, 40),
+                ForeColor = Color.FromArgb(233, 240, 243),
+                Font = new Font("Consolas", 9.5f, FontStyle.Regular, GraphicsUnit.Point)
             };
 
-            Controls.Add(_statusLabel);
-            Controls.Add(_detailLabel);
-            Controls.Add(_configLabel);
-            Controls.Add(_systemStatusLabel);
-            Controls.Add(_settingsButton);
-            Controls.Add(_parserTestsButton);
-            Controls.Add(diagnosticLabel);
-            Controls.Add(_diagnosticPhraseTextBox);
-            Controls.Add(_analyzePhraseButton);
-            Controls.Add(_diagnosticResultTextBox);
-            Controls.Add(_logBox);
+            var chrome = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(29, 33, 40),
+                Padding = new Padding(16)
+            };
+            chrome.Controls.Add(_logBox);
+
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            layout.Controls.Add(chrome, 0, 2);
+            card.Controls.Add(layout);
+            return card;
+        }
+
+        private TableLayoutPanel CreateCardLayout(string title, string subtitle)
+        {
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2,
+                BackColor = UiTheme.CardBackground
+            };
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            var titleLabel = new Label
+            {
+                AutoSize = true,
+                Text = title,
+                Font = UiTheme.TitleFont(14f),
+                ForeColor = UiTheme.TextPrimary
+            };
+
+            var subtitleLabel = new Label
+            {
+                AutoSize = true,
+                MaximumSize = new Size(760, 0),
+                Margin = new Padding(0, 6, 0, 16),
+                Text = subtitle,
+                Font = UiTheme.BodyFont(9.75f),
+                ForeColor = UiTheme.TextMuted
+            };
+
+            layout.Controls.Add(titleLabel, 0, 0);
+            layout.Controls.Add(subtitleLabel, 0, 1);
+            return layout;
+        }
+
+        private static Label CreateBodyLabel()
+        {
+            return new Label
+            {
+                AutoSize = true,
+                MaximumSize = new Size(720, 0),
+                Margin = new Padding(0, 0, 0, 12),
+                Font = UiTheme.BodyFont(9.75f),
+                ForeColor = UiTheme.TextPrimary
+            };
         }
 
         private void ReloadRuntime()
@@ -387,6 +605,10 @@ namespace SimpleOps.GsxRamp
             builder.AppendLine("GSX Remote: " + _rampController.GsxStatusText);
             builder.Append("Last command: " + _rampController.LastCommandText);
             _systemStatusLabel.Text = builder.ToString();
+
+            _heroSummaryLabel.Text = _rampController.IsArmed
+                ? "Ramp channel is armed. Ground services can be dispatched when a strong phrase match is detected."
+                : "Ramp channel is standing by. The command deck stays passive until the aircraft is confirmed on the ground.";
         }
 
         private void SettingsButton_Click(object sender, EventArgs e)
@@ -454,7 +676,7 @@ namespace SimpleOps.GsxRamp
                 return;
             }
 
-            _statusLabel.Text = message;
+            _heroStatusLabel.Text = message;
         }
 
         private void OnLineLogged(string line)
@@ -466,6 +688,8 @@ namespace SimpleOps.GsxRamp
             }
 
             _logBox.AppendText(line + Environment.NewLine);
+            _logBox.SelectionStart = _logBox.TextLength;
+            _logBox.ScrollToCaret();
         }
     }
 }

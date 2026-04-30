@@ -81,6 +81,7 @@
     <Compile Include="src\RampCommandProcessor.cs" />
     <Compile Include="src\ParserTestHarness.cs" />
     <Compile Include="src\SpeechServices.cs" />
+    <Compile Include="src\UiTheme.cs" />
     <Compile Include="src\LocalSpeechInputService.cs" />
     <Compile Include="src\OpenAiVoiceOutputService.cs" />
     <Compile Include="src\SilentVoiceOutputService.cs" />
