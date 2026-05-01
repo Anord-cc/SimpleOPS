@@ -16,6 +16,8 @@ namespace SimpleOps.GsxRamp
         private IList<AudioInputDeviceInfo> _inputDevices = new List<AudioInputDeviceInfo>();
         private IList<AudioOutputDeviceInfo> _outputDevices = new List<AudioOutputDeviceInfo>();
 
+        private Panel _scrollHost;
+        private TableLayoutPanel _stackHost;
         private TextBox _telemetryUrlTextBox;
         private NumericUpDown _minConfidenceUpDown;
         private ComboBox _inputDeviceComboBox;
@@ -75,13 +77,13 @@ namespace SimpleOps.GsxRamp
             _outputPanUpDown.Value = ClampDecimal((decimal)PendingSettings.OutputPan, _outputPanUpDown.Minimum, _outputPanUpDown.Maximum);
             _dryRunCheckBox.Checked = PendingSettings.DryRun;
             _openAiVoiceEnabledCheckBox.Checked = PendingSettings.OpenAiVoiceEnabled;
-            _openAiModelComboBox.Text = PendingSettings.OpenAiModel ?? "gpt-4o-mini-tts";
-            _openAiVoiceComboBox.Text = PendingSettings.OpenAiVoice ?? "marin";
-            _outputChannelComboBox.Text = PendingSettings.OutputChannel.ToString();
+            SelectComboValue(_openAiModelComboBox, PendingSettings.OpenAiModel ?? "gpt-4o-mini-tts");
+            SelectComboValue(_openAiVoiceComboBox, PendingSettings.OpenAiVoice ?? "marin");
+            SelectComboValue(_outputChannelComboBox, PendingSettings.OutputChannel.ToString());
             _apiKeyTextBox.Text = PendingApiKey;
-            _inputDeviceComboBox.Text = PendingSettings.MicrophoneDeviceName ?? string.Empty;
-            _outputDeviceComboBox.Text = PendingSettings.SpeakerDeviceName ?? string.Empty;
-            _validationLabel.Text = string.Empty;
+            SelectComboValue(_inputDeviceComboBox, PendingSettings.MicrophoneDeviceName);
+            SelectComboValue(_outputDeviceComboBox, PendingSettings.SpeakerDeviceName);
+            _validationLabel.Text = "Ready.";
             _diagnosticResultTextBox.Text = string.Empty;
         }
 
@@ -104,115 +106,140 @@ namespace SimpleOps.GsxRamp
 
         private void BuildUi()
         {
-            var scroll = new Panel
+            SuspendLayout();
+
+            _scrollHost = new Panel
             {
                 Dock = DockStyle.Fill,
                 AutoScroll = true,
-                BackColor = UiTheme.WindowBackground
-            };
-
-            var stack = new TableLayoutPanel
-            {
-                Dock = DockStyle.Top,
-                AutoSize = true,
-                ColumnCount = 1,
-                RowCount = 5,
-                Width = 940,
                 BackColor = UiTheme.WindowBackground,
                 Padding = new Padding(0, 0, 10, 0)
             };
 
-            stack.Controls.Add(BuildIntroCard(), 0, 0);
-            stack.Controls.Add(BuildFlightCard(), 0, 1);
-            stack.Controls.Add(BuildRecognitionCard(), 0, 2);
-            stack.Controls.Add(BuildAudioVoiceCard(), 0, 3);
-            stack.Controls.Add(BuildAdvancedCard(), 0, 4);
+            _stackHost = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 2,
+                RowCount = 4,
+                BackColor = UiTheme.WindowBackground,
+                Margin = new Padding(0)
+            };
+            _stackHost.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            _stackHost.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
 
-            scroll.Controls.Add(stack);
-            Controls.Add(scroll);
+            var saveCard = BuildSaveCard();
+            var flightCard = BuildFlightCard();
+            var recognitionCard = BuildRecognitionCard();
+            var audioCard = BuildAudioVoiceCard();
+            var advancedCard = BuildAdvancedCard();
+
+            _stackHost.Controls.Add(saveCard, 0, 0);
+            _stackHost.Controls.Add(flightCard, 0, 1);
+            _stackHost.Controls.Add(recognitionCard, 1, 1);
+            _stackHost.Controls.Add(audioCard, 0, 2);
+            _stackHost.Controls.Add(advancedCard, 0, 3);
+            _stackHost.SetColumnSpan(saveCard, 2);
+            _stackHost.SetColumnSpan(audioCard, 2);
+            _stackHost.SetColumnSpan(advancedCard, 2);
+
+            _scrollHost.Controls.Add(_stackHost);
+            Controls.Add(_scrollHost);
+
+            Resize += delegate { LayoutContentWidth(); };
+            LayoutContentWidth();
+            ResumeLayout();
         }
 
-        private Control BuildIntroCard()
+        private Control BuildSaveCard()
         {
-            var card = new CardPanel { Dock = DockStyle.Top, Height = 122 };
-            var layout = CreateFormCard("Settings", "Everything stays in this window. Save here, then use Advanced for diagnostics and logs.");
-            _validationLabel = new Label
-            {
-                AutoSize = true,
-                MaximumSize = new Size(860, 0),
-                ForeColor = Color.White,
-                Font = UiTheme.BodyFont(9.5f, FontStyle.Bold)
-            };
+            var card = CreateAutoCard();
+            var layout = CreateSectionLayout("Apply Changes", "Save settings in place and keep working in the same window.");
 
             var saveButton = new Button
             {
                 Text = "Save Changes",
-                Width = 140,
-                Height = 36
+                Width = 152,
+                Height = 38
             };
             UiTheme.StylePrimaryButton(saveButton);
             saveButton.Click += SaveButton_Click;
+
+            _validationLabel = new Label
+            {
+                AutoSize = true,
+                MaximumSize = new Size(700, 0),
+                Margin = new Padding(12, 9, 0, 0),
+                ForeColor = UiTheme.TextMuted,
+                Font = UiTheme.BodyFont(9.5f, FontStyle.Bold),
+                Text = "Ready."
+            };
 
             var actionRow = new FlowLayoutPanel
             {
                 Dock = DockStyle.Top,
                 AutoSize = true,
-                BackColor = Color.Transparent,
-                Margin = new Padding(0, 0, 0, 0)
+                WrapContents = false,
+                Margin = new Padding(0, 4, 0, 0),
+                BackColor = Color.Transparent
             };
             actionRow.Controls.Add(saveButton);
+            actionRow.Controls.Add(_validationLabel);
 
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowCount = 3;
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             layout.Controls.Add(actionRow, 0, 2);
-            layout.Controls.Add(_validationLabel, 0, 3);
+            layout.SetColumnSpan(actionRow, 2);
             card.Controls.Add(layout);
             return card;
         }
 
         private Control BuildFlightCard()
         {
-            var card = new CardPanel { Dock = DockStyle.Top, Height = 176 };
-            var layout = CreateFormCard("Flight", "Telemetry source and safe service behavior.");
+            var card = CreateAutoCard();
+            var layout = CreateSectionLayout("Flight", "Telemetry source and service safety.");
 
-            _telemetryUrlTextBox = CreateTextBox(560);
+            _telemetryUrlTextBox = CreateStretchTextBox();
             _dryRunCheckBox = CreateCheckBox("Keep GSX calls in dry-run mode");
 
             AddField(layout, 2, "Telemetry URL", _telemetryUrlTextBox);
             AddField(layout, 3, "Safety mode", _dryRunCheckBox);
+
             card.Controls.Add(layout);
             return card;
         }
 
         private Control BuildRecognitionCard()
         {
-            var card = new CardPanel { Dock = DockStyle.Top, Height = 218 };
-            var layout = CreateFormCard("Recognition", "Local phrase input, confidence, and mic sensitivity.");
+            var card = CreateAutoCard();
+            var layout = CreateSectionLayout("Recognition", "Microphone routing, confidence, and sensitivity.");
 
-            _inputDeviceComboBox = CreateComboBox(560);
-            _minConfidenceUpDown = CreateNumeric(0m, 1m, 0.01m, 2, 140);
-            _inputSensitivityUpDown = CreateNumeric(0m, 1m, 0.01m, 2, 140);
+            _inputDeviceComboBox = CreateStretchComboBox();
+            _minConfidenceUpDown = CreateNumeric(0m, 1m, 0.01m, 2);
+            _inputSensitivityUpDown = CreateNumeric(0m, 1m, 0.01m, 2);
 
             AddField(layout, 2, "Microphone", _inputDeviceComboBox);
             AddField(layout, 3, "Speech confidence", _minConfidenceUpDown);
             AddField(layout, 4, "Input sensitivity", _inputSensitivityUpDown);
+
             card.Controls.Add(layout);
             return card;
         }
 
         private Control BuildAudioVoiceCard()
         {
-            var card = new CardPanel { Dock = DockStyle.Top, Height = 362 };
-            var layout = CreateFormCard("Audio + Voice", "Output routing, OpenAI playback, and cockpit radio shaping.");
+            var card = CreateAutoCard();
+            var layout = CreateSectionLayout("Audio + Voice", "Speaker routing, radio shaping, and OpenAI playback.");
 
-            _outputDeviceComboBox = CreateComboBox(560);
-            _outputVolumeUpDown = CreateNumeric(0m, 2m, 0.05m, 2, 140);
-            _outputChannelComboBox = CreateComboBox(220);
-            _outputPanUpDown = CreateNumeric(-1m, 1m, 0.05m, 2, 140);
+            _outputDeviceComboBox = CreateStretchComboBox();
+            _outputVolumeUpDown = CreateNumeric(0m, 2m, 0.05m, 2);
+            _outputChannelComboBox = CreateListComboBox(Enum.GetNames(typeof(AudioOutputChannel)));
+            _outputPanUpDown = CreateNumeric(-1m, 1m, 0.05m, 2);
             _openAiVoiceEnabledCheckBox = CreateCheckBox("Enable OpenAI voice playback");
-            _openAiModelComboBox = CreateComboBox(280, "gpt-4o-mini-tts", "tts-1", "tts-1-hd");
-            _openAiVoiceComboBox = CreateComboBox(280, "marin", "cedar", "coral", "alloy", "ash", "ballad", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse");
-            _apiKeyTextBox = CreateTextBox(560);
+            _openAiModelComboBox = CreateListComboBox("gpt-4o-mini-tts", "tts-1", "tts-1-hd");
+            _openAiVoiceComboBox = CreateListComboBox("marin", "cedar", "coral", "alloy", "ash", "ballad", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse");
+            _apiKeyTextBox = CreateStretchTextBox();
             _apiKeyTextBox.UseSystemPasswordChar = true;
 
             AddField(layout, 2, "Speaker", _outputDeviceComboBox);
@@ -230,18 +257,20 @@ namespace SimpleOps.GsxRamp
 
         private Control BuildAdvancedCard()
         {
-            var card = new CardPanel { Dock = DockStyle.Top, Height = 660, Margin = new Padding(0) };
+            var card = CreateAutoCard();
             var root = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 1,
-                RowCount = 4,
-                BackColor = UiTheme.CardBackground
+                RowCount = 3,
+                BackColor = UiTheme.CardBackground,
+                Margin = new Padding(0)
             };
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 208));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             var title = new Label
             {
@@ -254,8 +283,8 @@ namespace SimpleOps.GsxRamp
             var subtitle = new Label
             {
                 AutoSize = true,
-                MaximumSize = new Size(860, 0),
-                Margin = new Padding(0, 6, 0, 18),
+                MaximumSize = new Size(920, 0),
+                Margin = new Padding(0, 6, 0, 16),
                 Text = "Phrase diagnostics, parser tests, and the live operations console.",
                 Font = UiTheme.BodyFont(9.75f),
                 ForeColor = UiTheme.TextMuted
@@ -263,28 +292,47 @@ namespace SimpleOps.GsxRamp
 
             root.Controls.Add(title, 0, 0);
             root.Controls.Add(subtitle, 0, 1);
-            root.Controls.Add(BuildDiagnosticsHost(), 0, 2);
-            root.Controls.Add(BuildConsoleHost(), 0, 3);
+            root.Controls.Add(BuildAdvancedWorkspace(), 0, 2);
 
             card.Controls.Add(root);
             return card;
         }
 
-        private Control BuildDiagnosticsHost()
+        private Control BuildAdvancedWorkspace()
         {
-            var host = new TableLayoutPanel
+            var grid = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 1,
+                RowCount = 2,
+                BackColor = UiTheme.CardBackground,
+                Margin = new Padding(0)
+            };
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            grid.Controls.Add(BuildDiagnosticsCard(), 0, 0);
+            grid.Controls.Add(BuildConsoleCard(), 0, 1);
+            return grid;
+        }
+
+        private Control BuildDiagnosticsCard()
+        {
+            var card = CreateSubCard();
+            var root = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 1,
                 RowCount = 4,
-                BackColor = UiTheme.CardBackground
+                BackColor = UiTheme.RaisedCardBackground,
+                Margin = new Padding(0)
             };
-            host.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            host.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            host.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            host.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            var label = new Label
+            var title = new Label
             {
                 AutoSize = true,
                 Text = "Phrase Diagnostics",
@@ -292,13 +340,24 @@ namespace SimpleOps.GsxRamp
                 ForeColor = UiTheme.TextPrimary
             };
 
-            _diagnosticPhraseTextBox = CreateTextBox(640);
+            var subtitle = new Label
+            {
+                AutoSize = true,
+                MaximumSize = new Size(900, 0),
+                Margin = new Padding(0, 6, 0, 12),
+                Text = "Check how a phrase is normalized, classified, and gated before GSX is touched.",
+                Font = UiTheme.BodyFont(9.5f),
+                ForeColor = UiTheme.TextMuted
+            };
+
+            _diagnosticPhraseTextBox = CreateStretchTextBox();
+            _diagnosticPhraseTextBox.Margin = new Padding(0, 0, 0, 10);
 
             var analyzeButton = new Button
             {
                 Text = "Analyze Phrase",
-                Width = 136,
-                Height = 34
+                Width = 138,
+                Height = 36
             };
             UiTheme.StylePrimaryButton(analyzeButton);
             analyzeButton.Click += delegate
@@ -313,8 +372,8 @@ namespace SimpleOps.GsxRamp
             var parserTestsButton = new Button
             {
                 Text = "Run Parser Tests",
-                Width = 146,
-                Height = 34
+                Width = 148,
+                Height = 36
             };
             UiTheme.StyleSecondaryButton(parserTestsButton);
             parserTestsButton.Click += delegate
@@ -326,43 +385,59 @@ namespace SimpleOps.GsxRamp
                 }
             };
 
-            var buttonRow = new FlowLayoutPanel
+            var actionRow = new FlowLayoutPanel
             {
                 Dock = DockStyle.Top,
                 AutoSize = true,
+                WrapContents = false,
+                Margin = new Padding(0, 0, 0, 10),
                 BackColor = Color.Transparent
             };
-            buttonRow.Controls.Add(analyzeButton);
-            buttonRow.Controls.Add(parserTestsButton);
+            actionRow.Controls.Add(analyzeButton);
+            actionRow.Controls.Add(parserTestsButton);
 
             _diagnosticResultTextBox = CreateReadoutBox();
+            _diagnosticResultTextBox.Height = 120;
 
-            host.Controls.Add(label, 0, 0);
-            host.Controls.Add(_diagnosticPhraseTextBox, 0, 1);
-            host.Controls.Add(buttonRow, 0, 2);
-            host.Controls.Add(_diagnosticResultTextBox, 0, 3);
-            return host;
+            root.Controls.Add(title, 0, 0);
+            root.Controls.Add(subtitle, 0, 1);
+            root.Controls.Add(_diagnosticPhraseTextBox, 0, 2);
+            root.Controls.Add(actionRow, 0, 3);
+            root.Controls.Add(_diagnosticResultTextBox, 0, 4);
+            card.Controls.Add(root);
+            return card;
         }
 
-        private Control BuildConsoleHost()
+        private Control BuildConsoleCard()
         {
-            var host = new TableLayoutPanel
+            var card = CreateSubCard();
+            var root = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 1,
-                RowCount = 2,
-                BackColor = UiTheme.CardBackground
+                RowCount = 3,
+                BackColor = UiTheme.RaisedCardBackground,
+                Margin = new Padding(0)
             };
-            host.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            host.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            var label = new Label
+            var title = new Label
             {
                 AutoSize = true,
-                Margin = new Padding(0, 14, 0, 10),
                 Text = "Operations Console",
                 Font = UiTheme.BodyFont(10f, FontStyle.Bold),
                 ForeColor = UiTheme.TextPrimary
+            };
+
+            var subtitle = new Label
+            {
+                AutoSize = true,
+                MaximumSize = new Size(900, 0),
+                Margin = new Padding(0, 6, 0, 12),
+                Text = "Live application logs, parser output, and runtime guardrails.",
+                Font = UiTheme.BodyFont(9.5f),
+                ForeColor = UiTheme.TextMuted
             };
 
             _logBox = new RichTextBox
@@ -370,52 +445,57 @@ namespace SimpleOps.GsxRamp
                 Dock = DockStyle.Fill,
                 BorderStyle = BorderStyle.FixedSingle,
                 ReadOnly = true,
+                Height = 260,
                 BackColor = UiTheme.InputBackground,
                 ForeColor = UiTheme.TextPrimary,
+                ScrollBars = RichTextBoxScrollBars.Vertical,
                 Font = new Font("Consolas", 9.25f, FontStyle.Regular, GraphicsUnit.Point)
             };
 
-            host.Controls.Add(label, 0, 0);
-            host.Controls.Add(_logBox, 0, 1);
-            return host;
+            root.Controls.Add(title, 0, 0);
+            root.Controls.Add(subtitle, 0, 1);
+            root.Controls.Add(_logBox, 0, 2);
+            card.Controls.Add(root);
+            return card;
         }
 
-        private TableLayoutPanel CreateFormCard(string title, string subtitle)
+        private TableLayoutPanel CreateSectionLayout(string title, string subtitle)
         {
             var layout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 2,
                 RowCount = 2,
-                BackColor = UiTheme.CardBackground
+                BackColor = UiTheme.CardBackground,
+                Margin = new Padding(0)
             };
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 166));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             var titleLabel = new Label
             {
                 AutoSize = true,
                 Text = title,
-                Font = UiTheme.TitleFont(15f),
+                Font = UiTheme.TitleFont(14.5f),
                 ForeColor = UiTheme.TextPrimary
             };
 
             var subtitleLabel = new Label
             {
                 AutoSize = true,
-                MaximumSize = new Size(820, 0),
-                Margin = new Padding(0, 6, 0, 16),
+                MaximumSize = new Size(900, 0),
+                Margin = new Padding(0, 6, 0, 14),
                 Text = subtitle,
-                Font = UiTheme.BodyFont(9.75f),
+                Font = UiTheme.BodyFont(9.5f),
                 ForeColor = UiTheme.TextMuted
             };
 
-            layout.SetColumnSpan(titleLabel, 2);
-            layout.SetColumnSpan(subtitleLabel, 2);
             layout.Controls.Add(titleLabel, 0, 0);
             layout.Controls.Add(subtitleLabel, 0, 1);
+            layout.SetColumnSpan(titleLabel, 2);
+            layout.SetColumnSpan(subtitleLabel, 2);
             return layout;
         }
 
@@ -431,54 +511,93 @@ namespace SimpleOps.GsxRamp
             var labelControl = new Label
             {
                 AutoSize = true,
-                Margin = new Padding(0, 9, 0, 0),
+                Margin = new Padding(0, 10, 0, 0),
                 Text = label,
                 Font = UiTheme.BodyFont(9.75f, FontStyle.Bold),
                 ForeColor = UiTheme.TextPrimary
             };
 
-            editor.Margin = new Padding(0, 4, 0, 8);
+            editor.Margin = new Padding(0, 4, 0, 10);
+            if (!(editor is NumericUpDown) && !(editor is CheckBox))
+            {
+                editor.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+            }
 
             layout.Controls.Add(labelControl, 0, row);
             layout.Controls.Add(editor, 1, row);
         }
 
-        private TextBox CreateTextBox(int width)
+        private CardPanel CreateAutoCard()
+        {
+            return new CardPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Dock = DockStyle.Top
+            };
+        }
+
+        private CardPanel CreateSubCard()
+        {
+            return new CardPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Dock = DockStyle.Top,
+                BackColor = UiTheme.RaisedCardBackground
+            };
+        }
+
+        private TextBox CreateStretchTextBox()
         {
             var textBox = new TextBox
             {
-                Width = width,
-                BorderStyle = BorderStyle.FixedSingle
+                BorderStyle = BorderStyle.FixedSingle,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                Width = 420
             };
             UiTheme.StyleInput(textBox);
             return textBox;
         }
 
-        private NumericUpDown CreateNumeric(decimal min, decimal max, decimal increment, int decimals, int width)
+        private NumericUpDown CreateNumeric(decimal min, decimal max, decimal increment, int decimals)
         {
             var numeric = new NumericUpDown
             {
-                Width = width,
+                Width = 150,
                 Minimum = min,
                 Maximum = max,
                 Increment = increment,
                 DecimalPlaces = decimals,
-                BorderStyle = BorderStyle.FixedSingle
+                BorderStyle = BorderStyle.FixedSingle,
+                Anchor = AnchorStyles.Left
             };
             UiTheme.StyleInput(numeric);
             return numeric;
         }
 
-        private ComboBox CreateComboBox(int width, params string[] items)
+        private ComboBox CreateStretchComboBox()
         {
             var comboBox = new ComboBox
             {
-                Width = width,
+                Width = 420,
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                FlatStyle = FlatStyle.Flat
+                FlatStyle = FlatStyle.Flat,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right
             };
-            comboBox.Items.AddRange(items ?? new string[0]);
             UiTheme.StyleInput(comboBox);
+            return comboBox;
+        }
+
+        private ComboBox CreateListComboBox(params string[] items)
+        {
+            var comboBox = CreateStretchComboBox();
+            comboBox.Items.AddRange(items ?? new string[0]);
+            if (comboBox.Items.Count > 0)
+            {
+                comboBox.SelectedIndex = 0;
+            }
+
             return comboBox;
         }
 
@@ -487,9 +606,11 @@ namespace SimpleOps.GsxRamp
             return new CheckBox
             {
                 AutoSize = true,
+                Margin = new Padding(0, 8, 0, 8),
                 Text = text,
                 Font = UiTheme.BodyFont(9.75f),
-                ForeColor = UiTheme.TextPrimary
+                ForeColor = UiTheme.TextPrimary,
+                BackColor = Color.Transparent
             };
         }
 
@@ -502,6 +623,7 @@ namespace SimpleOps.GsxRamp
                 ReadOnly = true,
                 BackColor = UiTheme.InputBackground,
                 ForeColor = UiTheme.TextPrimary,
+                ScrollBars = RichTextBoxScrollBars.Vertical,
                 Font = UiTheme.BodyFont(9.5f)
             };
         }
@@ -535,13 +657,15 @@ namespace SimpleOps.GsxRamp
             var validation = settings.Validate();
             if (!string.IsNullOrWhiteSpace(validation))
             {
+                _validationLabel.ForeColor = Color.White;
                 _validationLabel.Text = validation;
                 return;
             }
 
             PendingSettings = settings;
             PendingApiKey = (_apiKeyTextBox.Text ?? string.Empty).Trim();
-            _validationLabel.Text = "Settings ready. Applying now.";
+            _validationLabel.ForeColor = UiTheme.TextPrimary;
+            _validationLabel.Text = "Settings saved. Reloading services.";
 
             var handler = SaveRequested;
             if (handler != null)
@@ -550,10 +674,47 @@ namespace SimpleOps.GsxRamp
             }
         }
 
+        private void LayoutContentWidth()
+        {
+            if (_scrollHost == null || _stackHost == null)
+            {
+                return;
+            }
+
+            var width = Math.Max(920, _scrollHost.ClientSize.Width - 18);
+            _stackHost.Width = width;
+        }
+
         private static void FillCombo(ComboBox comboBox, IEnumerable<string> items)
         {
             comboBox.Items.Clear();
             comboBox.Items.AddRange((items ?? Enumerable.Empty<string>()).Where(item => !string.IsNullOrWhiteSpace(item)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
+        }
+
+        private static void SelectComboValue(ComboBox comboBox, string value)
+        {
+            if (comboBox == null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                for (int index = 0; index < comboBox.Items.Count; index++)
+                {
+                    var item = comboBox.Items[index] as string;
+                    if (string.Equals(item, value, StringComparison.OrdinalIgnoreCase))
+                    {
+                        comboBox.SelectedIndex = index;
+                        return;
+                    }
+                }
+            }
+
+            if (comboBox.Items.Count > 0 && comboBox.SelectedIndex < 0)
+            {
+                comboBox.SelectedIndex = 0;
+            }
         }
 
         private static decimal ClampDecimal(decimal value, decimal min, decimal max)

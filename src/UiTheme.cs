@@ -10,16 +10,20 @@ namespace SimpleOps.GsxRamp
 {
     internal static class UiTheme
     {
-        public static readonly Color WindowBackground = Color.FromArgb(8, 8, 8);
-        public static readonly Color RailBackground = Color.FromArgb(14, 14, 14);
-        public static readonly Color SurfaceBackground = Color.FromArgb(18, 18, 18);
-        public static readonly Color CardBackground = Color.FromArgb(24, 24, 24);
-        public static readonly Color CardBorder = Color.FromArgb(62, 62, 62);
-        public static readonly Color InputBackground = Color.FromArgb(12, 12, 12);
-        public static readonly Color InputBorder = Color.FromArgb(72, 72, 72);
+        public static readonly Color WindowBackground = Color.FromArgb(6, 6, 6);
+        public static readonly Color RailBackground = Color.FromArgb(10, 10, 10);
+        public static readonly Color RailBorder = Color.FromArgb(34, 34, 34);
+        public static readonly Color SurfaceBackground = Color.FromArgb(14, 14, 14);
+        public static readonly Color CardBackground = Color.FromArgb(19, 19, 19);
+        public static readonly Color RaisedCardBackground = Color.FromArgb(23, 23, 23);
+        public static readonly Color CardBorder = Color.FromArgb(52, 52, 52);
+        public static readonly Color InputBackground = Color.FromArgb(11, 11, 11);
+        public static readonly Color InputBorder = Color.FromArgb(74, 74, 74);
+        public static readonly Color ButtonHover = Color.FromArgb(28, 28, 28);
+        public static readonly Color ButtonDown = Color.FromArgb(34, 34, 34);
         public static readonly Color TextPrimary = Color.White;
-        public static readonly Color TextMuted = Color.FromArgb(189, 189, 189);
-        public static readonly Color TextSoft = Color.FromArgb(136, 136, 136);
+        public static readonly Color TextMuted = Color.FromArgb(196, 196, 196);
+        public static readonly Color TextSoft = Color.FromArgb(142, 142, 142);
         public static readonly Color InverseText = Color.Black;
 
         public static Font TitleFont(float size)
@@ -37,10 +41,13 @@ namespace SimpleOps.GsxRamp
             button.FlatStyle = FlatStyle.Flat;
             button.FlatAppearance.BorderSize = 1;
             button.FlatAppearance.BorderColor = Color.White;
+            button.FlatAppearance.MouseOverBackColor = Color.White;
+            button.FlatAppearance.MouseDownBackColor = Color.White;
             button.BackColor = Color.White;
             button.ForeColor = InverseText;
             button.Font = BodyFont(9.5f, FontStyle.Bold);
             button.Cursor = Cursors.Hand;
+            button.TabStop = false;
         }
 
         public static void StyleSecondaryButton(Button button)
@@ -48,20 +55,28 @@ namespace SimpleOps.GsxRamp
             button.FlatStyle = FlatStyle.Flat;
             button.FlatAppearance.BorderSize = 1;
             button.FlatAppearance.BorderColor = CardBorder;
-            button.BackColor = CardBackground;
+            button.FlatAppearance.MouseOverBackColor = ButtonHover;
+            button.FlatAppearance.MouseDownBackColor = ButtonDown;
+            button.BackColor = RaisedCardBackground;
             button.ForeColor = TextPrimary;
             button.Font = BodyFont(9.5f, FontStyle.Bold);
             button.Cursor = Cursors.Hand;
+            button.TabStop = false;
         }
 
         public static void StyleNavButton(Button button, bool active)
         {
             button.FlatStyle = FlatStyle.Flat;
             button.FlatAppearance.BorderSize = 0;
+            button.FlatAppearance.MouseOverBackColor = active ? Color.White : ButtonHover;
+            button.FlatAppearance.MouseDownBackColor = active ? Color.White : ButtonDown;
             button.TextAlign = ContentAlignment.MiddleLeft;
-            button.Font = BodyFont(10f, FontStyle.Bold);
+            button.Font = BodyFont(10.25f, FontStyle.Bold);
             button.Cursor = Cursors.Hand;
-            button.Padding = new Padding(16, 0, 0, 0);
+            button.Padding = new Padding(18, 0, 0, 0);
+            button.Margin = new Padding(0, 0, 0, 10);
+            button.Height = 46;
+            button.TabStop = false;
 
             if (active)
             {
@@ -81,6 +96,16 @@ namespace SimpleOps.GsxRamp
             control.BackColor = InputBackground;
             control.ForeColor = TextPrimary;
         }
+
+        public static Panel CreateRailDivider()
+        {
+            return new Panel
+            {
+                Dock = DockStyle.Right,
+                Width = 1,
+                BackColor = RailBorder
+            };
+        }
     }
 
     internal sealed class CardPanel : Panel
@@ -89,7 +114,7 @@ namespace SimpleOps.GsxRamp
         {
             DoubleBuffered = true;
             BackColor = UiTheme.CardBackground;
-            Padding = new Padding(18);
+            Padding = new Padding(22, 20, 22, 20);
             Margin = new Padding(0, 0, 0, 16);
         }
 

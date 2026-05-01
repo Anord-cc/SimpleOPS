@@ -1,9 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
 <!-- Copyright (c) 2026 Alex Nord. All rights reserved. -->
 <!-- SPDX-FileCopyrightText: 2026 Alex Nord -->
 <!-- SPDX-License-Identifier: LicenseRef-AlexNord-Proprietary-SourceAvailable -->
 <!-- See LICENSE.md for terms. No copying, modification, distribution, commercial use, or AI/ML training except by written permission. -->
 <!-- -->
-<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="Current" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -21,6 +21,7 @@
     <Prefer32Bit>false</Prefer32Bit>
     <PlatformTarget>x64</PlatformTarget>
     <LangVersion>latest</LangVersion>
+    <UseSharedCompilation>false</UseSharedCompilation>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <OutputPath>bin\Release\</OutputPath>
